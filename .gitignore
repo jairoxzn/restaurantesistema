@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Environment variables (contienen credenciales reales — nunca commitear)
+.env
+.env.*
+!.env.example
+
+# Build output
+dist/
+dist-ssr/
+
+# Uploads (contenido subido por usuarios, no código)
+uploads/*
+!uploads/.gitkeep
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea

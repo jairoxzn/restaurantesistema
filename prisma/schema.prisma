@@ -1,0 +1,218 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum RolUsuario {
+  ADMIN
+  EMPLEADO
+}
+
+model Usuario {
+  id            Int            @id @default(autoincrement())
+  nombre        String         @db.VarChar(100)
+  email         String         @unique @db.VarChar(150)
+  password      String         @db.VarChar(255)
+  rol           RolUsuario     @default(EMPLEADO)
+  created_at    DateTime?      @default(now()) @db.Timestamp(6)
+  
+  cajaSesiones  CajaSesion[]
+  gastos        Gasto[]
+  cierresMesa   CierreMesa[]
+  ventas        Venta[]
+  kardex        Kardex[]
+
+  @@map("usuarios")
+}
+
+model Categoria {
+  id        Int        @id @default(autoincrement())
+  nombre    String     @unique @db.VarChar(100)
+  productos Producto[]
+
+  @@map("categorias")
+}
+
+model Producto {
+  id           Int       @id @default(autoincrement())
+  nombre       String    @db.VarChar(150)
+  descripcion  String?
+  precio       Decimal   @db.Decimal(10, 2)
+  stock        Int       @default(0)
+  categoria_id Int
+  imagen       String?   @db.VarChar(255)
+  created_at   DateTime? @default(now()) @db.Timestamp(6)
+
+  categoria    Categoria @relation(fields: [categoria_id], references: [id], onDelete: Cascade)
+  detallesVenta DetalleVenta[]
+  kardex       Kardex[]
+
+  @@map("productos")
+}
+
+enum EstadoCaja {
+  ABIERTA
+  CERRADA
+}
+
+model CajaSesion {
+  id                     Int         @id @default(autoincrement())
+  usuario_id             Int
+  monto_apertura         Decimal     @default(0.00) @db.Decimal(10, 2)
+  fecha_apertura         DateTime?   @default(now()) @db.Timestamp(6)
+  fecha_cierre           DateTime?   @db.Timestamp(6)
+  monto_cierre_esperado  Decimal?    @db.Decimal(10, 2)
+  monto_cierre_declarado Decimal?    @db.Decimal(10, 2)
+  desglose_esperado      Json?
+  desglose_declarado     Json?
+  estado                 EstadoCaja  @default(ABIERTA)
+
+  usuario                Usuario     @relation(fields: [usuario_id], references: [id])
+  gastos                 Gasto[]
+  cierresMesa            CierreMesa[]
+  ventas                 Venta[]
+
+  @@map("caja_sesiones")
+}
+
+model Gasto {
+  id         Int       @id @default(autoincrement())
+  caja_id    Int
+  usuario_id Int
+  concepto   String    @db.VarChar(255)
+  monto      Decimal   @db.Decimal(10, 2)
+  fecha      DateTime? @default(now()) @db.Timestamp(6)
+
+  caja       CajaSesion @relation(fields: [caja_id], references: [id])
+  usuario    Usuario    @relation(fields: [usuario_id], references: [id])
+
+  @@map("gastos")
+}
+
+enum EstadoMesa {
+  LIBRE
+  OCUPADA
+}
+
+model Mesa {
+  id         Int         @id @default(autoincrement())
+  nombre     String      @db.VarChar(50)
+  capacidad  Int         @default(4)
+  estado     EstadoMesa  @default(LIBRE)
+  created_at DateTime?   @default(now()) @db.Timestamp(6)
+
+  cierres    CierreMesa[]
+  ventas     Venta[]
+
+  @@map("mesas")
+}
+
+model CierreMesa {
+  id         Int       @id @default(autoincrement())
+  mesa_id    Int
+  usuario_id Int
+  caja_id    Int
+  total      Decimal   @db.Decimal(10, 2)
+  fecha      DateTime? @default(now()) @db.Timestamp(6)
+
+  mesa       Mesa       @relation(fields: [mesa_id], references: [id])
+  usuario    Usuario    @relation(fields: [usuario_id], references: [id])
+  caja       CajaSesion @relation(fields: [caja_id], references: [id])
+  ventas     Venta[]
+  pagos      PagoMesa[]
+
+  @@map("cierres_mesa")
+}
+
+enum TipoVenta {
+  LLEVAR
+  MESA
+}
+
+enum EstadoPago {
+  PENDIENTE
+  PAGADO
+}
+
+enum EstadoCocina {
+  PENDIENTE
+  PREPARANDO
+  LISTO
+  ENTREGADO
+}
+
+model Venta {
+  id             Int          @id @default(autoincrement())
+  usuario_id     Int
+  caja_id        Int?
+  mesa_id        Int?
+  tipo           TipoVenta    @default(LLEVAR)
+  estado_pago    EstadoPago   @default(PAGADO)
+  cierre_mesa_id Int?
+  total          Decimal      @db.Decimal(10, 2)
+  metodo_pago    String?      @db.VarChar(50)
+  estado_cocina  EstadoCocina @default(PENDIENTE)
+  fecha          DateTime?    @default(now()) @db.Timestamp(6)
+
+  usuario        Usuario      @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+  caja           CajaSesion?  @relation(fields: [caja_id], references: [id])
+  mesa           Mesa?        @relation(fields: [mesa_id], references: [id])
+  cierreMesa     CierreMesa?  @relation(fields: [cierre_mesa_id], references: [id])
+  detalles       DetalleVenta[]
+
+  @@map("ventas")
+}
+
+model PagoMesa {
+  id             Int        @id @default(autoincrement())
+  cierre_mesa_id Int
+  metodo_pago    String     @db.VarChar(50)
+  monto          Decimal    @db.Decimal(10, 2)
+  fecha          DateTime?  @default(now()) @db.Timestamp(6)
+
+  cierreMesa     CierreMesa @relation(fields: [cierre_mesa_id], references: [id], onDelete: Cascade)
+
+  @@map("pagos_mesa")
+}
+
+model DetalleVenta {
+  id              Int      @id @default(autoincrement())
+  venta_id        Int
+  producto_id     Int
+  cantidad        Int
+  precio_unitario Decimal  @db.Decimal(10, 2)
+
+  venta           Venta    @relation(fields: [venta_id], references: [id], onDelete: Cascade)
+  producto        Producto @relation(fields: [producto_id], references: [id], onDelete: Cascade)
+
+  @@map("detalle_ventas")
+}
+
+enum TipoMovimientoKardex {
+  INGRESO
+  VENTA
+  MERMA
+  AJUSTE
+}
+
+model Kardex {
+  id             Int                  @id @default(autoincrement())
+  producto_id    Int
+  usuario_id     Int
+  tipo           TipoMovimientoKardex
+  cantidad       Int
+  stock_anterior Int
+  stock_nuevo    Int
+  motivo         String?              @db.VarChar(255)
+  fecha          DateTime?            @default(now()) @db.Timestamp(6)
+
+  producto       Producto @relation(fields: [producto_id], references: [id], onDelete: Cascade)
+  usuario        Usuario  @relation(fields: [usuario_id], references: [id])
+
+  @@map("kardex")
+}
