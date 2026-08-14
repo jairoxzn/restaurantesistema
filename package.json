@@ -4,6 +4,7 @@
   "description": "Sistema de Gestión para Cafetería Colca - API + Frontend",
   "main": "server.js",
   "scripts": {
+    "postinstall": "prisma generate",
     "start": "node server.js",
     "dev:server": "node --watch server.js",
     "dev:client": "vite",
