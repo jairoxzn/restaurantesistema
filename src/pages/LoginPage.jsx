@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import toast from 'react-hot-toast';
@@ -200,21 +200,6 @@ const LoginPage = () => {
               )}
             </button>
           </form>
-
-          <div className="mt-6 flex items-center gap-3">
-            <div className="h-px flex-1 bg-dark-700/60"></div>
-            <span className="text-xs text-dark-500">o</span>
-            <div className="h-px flex-1 bg-dark-700/60"></div>
-          </div>
-
-          <div className="mt-6 text-center">
-            <p className="text-dark-400 text-sm">
-              ¿No tienes cuenta?{' '}
-              <Link to="/register" className="text-primary-400 hover:text-primary-300 font-medium transition-colors">
-                Regístrate
-              </Link>
-            </p>
-          </div>
 
           {/* Demo credentials */}
           <div className="mt-8 p-3 rounded-xl bg-dark-800/40 border border-dark-700/50 text-center">

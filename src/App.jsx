@@ -4,7 +4,6 @@ import { CartProvider } from './context/CartContext';
 import { SettingsProvider } from './context/SettingsContext';
 import { Toaster } from 'react-hot-toast';
 import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import ProductsPage from './pages/ProductsPage';
 import POSPage from './pages/POSPage';
@@ -83,7 +82,6 @@ function App() {
           />
           <Routes>
             <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
-            <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
             <Route path="/menu" element={<MenuPage />} />
             <Route path="/dashboard" element={<ProtectedRoute adminOnly><DashboardPage /></ProtectedRoute>} />
             <Route path="/products" element={<ProtectedRoute adminOnly><ProductsPage /></ProtectedRoute>} />

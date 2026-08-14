@@ -30,15 +30,6 @@ export const AuthProvider = ({ children }) => {
     return response.data;
   };
 
-  const register = async (data) => {
-    const response = await authService.register(data);
-    const { token, user: userData } = response.data;
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(userData));
-    setUser(userData);
-    return response.data;
-  };
-
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -48,7 +39,7 @@ export const AuthProvider = ({ children }) => {
   const isAdmin = () => user?.rol === 'ADMIN';
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, isAdmin }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, isAdmin }}>
       {children}
     </AuthContext.Provider>
   );

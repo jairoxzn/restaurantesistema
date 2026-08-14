@@ -2,23 +2,23 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 // --- Imprimir directamente en ventana térmica ESC/POS / HTML ---
-export const printThermalDirect = (htmlContent, title = 'Ticket') => {
+export const printThermalDirect = (htmlContent, title = 'Ticket', widthMm = 80) => {
   const printWindow = window.open('', '_blank', 'width=400,height=600');
   if (!printWindow) return;
-  
+
   printWindow.document.write(`
     <!DOCTYPE html>
     <html>
       <head>
         <title>${title}</title>
         <style>
-          @page { margin: 0; }
-          body { 
-            font-family: 'Courier New', Courier, monospace; 
-            margin: 0; 
-            padding: 8px; 
-            width: 100%; 
-            box-sizing: border-box; 
+          @page { size: ${widthMm}mm ${widthMm}mm; margin: 0; }
+          html, body { width: ${widthMm}mm; }
+          body {
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            padding: 2mm;
+            box-sizing: border-box;
             font-size: 12px;
             color: #000;
           }
@@ -40,6 +40,14 @@ export const printThermalDirect = (htmlContent, title = 'Ticket') => {
         ${htmlContent}
         <script>
           window.onload = function() {
+            // "auto" no es un valor válido para @page size combinado con un ancho fijo,
+            // así que calculamos el alto real del ticket y lo fijamos como tamaño de página
+            // para que la hoja se ajuste al contenido en vez de usar Carta/A4 por defecto.
+            var mmPerPx = 25.4 / 96;
+            var heightMm = Math.ceil(document.body.scrollHeight * mmPerPx) + 4;
+            var pageStyle = document.createElement('style');
+            pageStyle.textContent = '@page { size: ${widthMm}mm ' + heightMm + 'mm; margin: 0; }';
+            document.head.appendChild(pageStyle);
             window.print();
             setTimeout(function() { window.close(); }, 500);
           };
@@ -87,7 +95,7 @@ export const printKitchenTicket = (order, settings, format = '80mm') => {
     </div>
   `;
 
-  printThermalDirect(html, `Comanda_Cocina_${order.id || 'NUEVA'}`);
+  printThermalDirect(html, `Comanda_Cocina_${order.id || 'NUEVA'}`, widthMm);
 };
 
 // --- Ticket de Cliente (Boleta Venta) ---
@@ -134,11 +142,12 @@ export const generateSaleReceipt = (sale, settings, format = '80mm') => {
     <div class="text-center bold">${settings?.nombre_cafeteria || 'Cafetería Colca'}</div>
   `;
 
-  printThermalDirect(html, `Boleta_${sale.id}`);
+  printThermalDirect(html, `Boleta_${sale.id}`, width);
 };
 
 // --- Recibo de Cuenta de Mesa ---
 export const generateCuentaReceipt = ({ mesa, comandas, pagos, total }, settings, format = '80mm') => {
+  const width = format === '58mm' ? 58 : 80;
   const moneda = settings?.moneda || 'S/';
   const allItems = comandas.flatMap(c => c.detalles || []);
 
@@ -185,5 +194,5 @@ export const generateCuentaReceipt = ({ mesa, comandas, pagos, total }, settings
     <div class="text-center" style="margin-top: 10px;">¡Gracias por su preferencia!</div>
   `;
 
-  printThermalDirect(html, `Cuenta_${mesa.nombre.replace(/\s+/g, '_')}`);
+  printThermalDirect(html, `Cuenta_${mesa.nombre.replace(/\s+/g, '_')}`, width);
 };
