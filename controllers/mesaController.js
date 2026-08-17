@@ -1,5 +1,6 @@
 const prisma = require('../config/db');
 const io = require('../socket');
+const logActivity = require('../utils/activityLog');
 
 const getAll = async (req, res) => {
   try {
@@ -72,13 +73,55 @@ const remove = async (req, res) => {
     if (!existing) {
       return res.status(404).json({ message: 'Mesa no encontrada' });
     }
-    if (existing.estado !== 'LIBRE') {
+    if (existing.estado === 'OCUPADA') {
       return res.status(400).json({ message: 'No se puede eliminar una mesa ocupada. Cobre la cuenta primero.' });
     }
     await prisma.mesa.delete({ where: { id: mesaId } });
     res.json({ message: 'Mesa eliminada exitosamente' });
   } catch (error) {
     console.error('Error al eliminar mesa:', error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+};
+
+const suspender = async (req, res) => {
+  try {
+    const mesaId = parseInt(req.params.id, 10);
+    const existing = await prisma.mesa.findUnique({ where: { id: mesaId } });
+    if (!existing) {
+      return res.status(404).json({ message: 'Mesa no encontrada' });
+    }
+    if (existing.estado !== 'LIBRE') {
+      return res.status(400).json({ message: 'Solo se puede suspender una mesa libre.' });
+    }
+    const mesa = await prisma.mesa.update({
+      where: { id: mesaId },
+      data: { estado: 'SUSPENDIDA' }
+    });
+    res.json({ message: 'Mesa suspendida', mesa });
+  } catch (error) {
+    console.error('Error al suspender mesa:', error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+};
+
+const reactivar = async (req, res) => {
+  try {
+    const mesaId = parseInt(req.params.id, 10);
+    const existing = await prisma.mesa.findUnique({ where: { id: mesaId } });
+    if (!existing) {
+      return res.status(404).json({ message: 'Mesa no encontrada' });
+    }
+    if (existing.estado !== 'SUSPENDIDA') {
+      return res.status(400).json({ message: 'La mesa no está suspendida.' });
+    }
+    const mesa = await prisma.mesa.update({
+      where: { id: mesaId },
+      data: { estado: 'LIBRE' }
+    });
+    res.json({ message: 'Mesa reactivada', mesa });
+  } catch (error) {
+    console.error('Error al reactivar mesa:', error);
     res.status(500).json({ message: 'Error del servidor' });
   }
 };
@@ -187,7 +230,7 @@ const cobrar = async (req, res) => {
         data: { estado: 'LIBRE' }
       });
 
-      return { cierreId: cierre.id, totalPendiente };
+      return { cierreId: cierre.id, totalPendiente, mesaNombre: mesas[0].nombre, metodoFinal };
     });
 
     try {
@@ -195,6 +238,13 @@ const cobrar = async (req, res) => {
     } catch (err) {
       console.error('No se pudo emitir evento por socket', err);
     }
+
+    logActivity({
+      usuario: req.user,
+      accion: 'COBRO',
+      descripcion: `${result.mesaNombre} cobrada por ${result.totalPendiente.toFixed(2)} (${result.metodoFinal})`,
+      ip: req.ip,
+    });
 
     res.json({
       message: 'Cuenta cobrada exitosamente',
@@ -206,4 +256,4 @@ const cobrar = async (req, res) => {
   }
 };
 
-module.exports = { getAll, create, update, remove, getCuenta, cobrar };
+module.exports = { getAll, create, update, remove, getCuenta, cobrar, suspender, reactivar };

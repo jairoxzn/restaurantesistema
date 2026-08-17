@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
-const { getAll, create, update, remove, getCuenta, cobrar } = require('../controllers/mesaController');
+const { getAll, create, update, remove, getCuenta, cobrar, suspender, reactivar } = require('../controllers/mesaController');
 const auth = require('../middlewares/auth');
 const roleCheck = require('../middlewares/roleCheck');
 const validate = require('../middlewares/validate');
@@ -20,6 +20,9 @@ router.put('/:id', auth, roleCheck('ADMIN'), [
 ], validate, update);
 
 router.delete('/:id', auth, roleCheck('ADMIN'), remove);
+
+router.post('/:id/suspender', auth, roleCheck('ADMIN'), suspender);
+router.post('/:id/reactivar', auth, roleCheck('ADMIN'), reactivar);
 
 router.post('/:id/cobrar', auth, [
   body('pagos').isArray({ min: 1 }).withMessage('Debe incluir al menos un método de pago'),

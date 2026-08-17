@@ -5,6 +5,10 @@ require('dotenv').config();
 
 const app = express();
 
+// Detrás de Vercel/Coolify hay un proxy inverso: sin esto, req.ip sería la IP
+// interna del proxy en vez de la IP real del cliente (usada en el registro de actividad).
+app.set('trust proxy', true);
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -25,6 +29,9 @@ app.use('/api/caja', require('./routes/caja'));
 app.use('/api/kardex', require('./routes/kardex'));
 app.use('/api/kds', require('./routes/kds'));
 app.use('/api/mesas', require('./routes/mesas'));
+app.use('/api/activity', require('./routes/activity'));
+app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/clientes', require('./routes/clientes'));
 
 // Health check
 app.get('/api/health', (req, res) => {

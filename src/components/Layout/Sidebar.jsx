@@ -15,6 +15,8 @@ import {
   HiOutlineCog,
   HiOutlineCalculator,
   HiOutlineFire,
+  HiOutlineClipboardCheck,
+  HiOutlineIdentification,
   HiX
 } from 'react-icons/hi';
 
@@ -40,6 +42,8 @@ const Sidebar = ({ isOpen, onClose }) => {
     ...(isAdmin() ? [{ to: '/products', icon: HiOutlineCube, label: 'Productos' }] : []),
     { to: '/sales', icon: HiOutlineCash, label: 'Historial Ventas' },
     ...(isAdmin() ? [{ to: '/users', icon: HiOutlineUsers, label: 'Usuarios' }] : []),
+    ...(isAdmin() ? [{ to: '/clientes', icon: HiOutlineIdentification, label: 'Clientes' }] : []),
+    ...(isAdmin() ? [{ to: '/activity', icon: HiOutlineClipboardCheck, label: 'Registro de Actividad' }] : []),
     ...(isAdmin() ? [{ to: '/settings', icon: HiOutlineCog, label: 'Configuración' }] : []),
   ];
 

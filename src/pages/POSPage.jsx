@@ -6,6 +6,7 @@ import { productService } from '../services/productService';
 import { categoryService } from '../services/categoryService';
 import { saleService } from '../services/saleService';
 import { mesaService } from '../services/mesaService';
+import { clienteService } from '../services/clienteService';
 import { useCart } from '../context/CartContext';
 import { useSettings } from '../context/SettingsContext';
 import toast from 'react-hot-toast';
@@ -14,7 +15,7 @@ import {
   HiOutlineSearch, HiOutlinePlus, HiOutlineMinus, HiOutlineTrash,
   HiOutlineShoppingCart, HiOutlineCash, HiOutlineCreditCard,
   HiOutlinePhotograph, HiOutlineX, HiOutlineCheckCircle, HiOutlineDocumentText,
-  HiOutlineViewGrid, HiOutlineArrowLeft
+  HiOutlineViewGrid, HiOutlineArrowLeft, HiOutlineIdentification, HiOutlineCheck
 } from 'react-icons/hi';
 
 const API_URL = '';
@@ -33,6 +34,12 @@ const POSPage = () => {
   const [processing, setProcessing] = useState(false);
   const [showCart, setShowCart] = useState(false);
   const [mesaCuenta, setMesaCuenta] = useState(null);
+
+  // Cliente opcional al cobrar (autocompleta si ya existe por teléfono)
+  const [clienteTelefono, setClienteTelefono] = useState('');
+  const [clienteNombre, setClienteNombre] = useState('');
+  const [clienteEncontrado, setClienteEncontrado] = useState(false);
+  const [buscandoCliente, setBuscandoCliente] = useState(false);
 
   const { items, addItem, removeItem, updateQuantity, getTotal, getItemCount, clearCart } = useCart();
   const { settings } = useSettings();
@@ -59,6 +66,32 @@ const POSPage = () => {
     const timer = setTimeout(() => loadProducts(), 300);
     return () => clearTimeout(timer);
   }, [search, activeCategory]);
+
+  // Autocompletar cliente por teléfono mientras se escribe (con debounce)
+  useEffect(() => {
+    const telefonoLimpio = clienteTelefono.replace(/\D/g, '');
+    if (telefonoLimpio.length < 6) {
+      setClienteEncontrado(false);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        setBuscandoCliente(true);
+        const res = await clienteService.buscarPorTelefono(telefonoLimpio);
+        if (res.data) {
+          setClienteNombre(res.data.nombre);
+          setClienteEncontrado(true);
+        } else {
+          setClienteEncontrado(false);
+        }
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setBuscandoCliente(false);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [clienteTelefono]);
 
   const loadData = async () => {
     try {
@@ -98,12 +131,19 @@ const POSPage = () => {
           precio_unitario: item.precio,
         })),
         metodo_pago: metodoPago,
+        ...(clienteTelefono.replace(/\D/g, '').length >= 6 && {
+          cliente_telefono: clienteTelefono,
+          cliente_nombre: clienteNombre || undefined,
+        }),
       };
       const response = await saleService.create(saleData);
       toast.success('¡Venta registrada exitosamente!');
       generateSaleReceipt(response.data.sale, settings);
       clearCart();
       setPaymentModalOpen(false);
+      setClienteTelefono('');
+      setClienteNombre('');
+      setClienteEncontrado(false);
       loadProducts();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Error al procesar la venta');
@@ -365,6 +405,41 @@ const POSPage = () => {
             <p className="text-dark-400 text-sm mb-1">Total a pagar</p>
             <p className="text-4xl font-bold text-primary-400">{settings?.moneda || 'S/'} {getTotal().toFixed(2)}</p>
             <p className="text-dark-500 text-xs mt-1">{getItemCount()} productos</p>
+          </div>
+
+          <div>
+            <p className="label-field flex items-center gap-1.5">
+              <HiOutlineIdentification className="w-4 h-4" />
+              Cliente (opcional)
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="relative">
+                <input
+                  type="tel"
+                  value={clienteTelefono}
+                  onChange={(e) => { setClienteTelefono(e.target.value); setClienteEncontrado(false); }}
+                  className="input-field text-sm py-2"
+                  placeholder="Teléfono"
+                />
+                {buscandoCliente && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 border-2 border-primary-500/30 border-t-primary-500 rounded-full animate-spin"></div>
+                )}
+                {!buscandoCliente && clienteEncontrado && (
+                  <HiOutlineCheck className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-400" />
+                )}
+              </div>
+              <input
+                type="text"
+                value={clienteNombre}
+                onChange={(e) => setClienteNombre(e.target.value)}
+                className="input-field text-sm py-2"
+                placeholder="Nombre"
+                readOnly={clienteEncontrado}
+              />
+            </div>
+            {clienteEncontrado && (
+              <p className="text-xs text-green-400 mt-1">Cliente frecuente encontrado ✓</p>
+            )}
           </div>
 
           <div>

@@ -5,7 +5,10 @@ import { kdsService } from '../services/kdsService';
 import { useSettings } from '../context/SettingsContext';
 import { printKitchenTicket } from '../utils/receipt';
 import toast from 'react-hot-toast';
-import { HiOutlineFire, HiOutlineCheckCircle, HiOutlineClock, HiOutlinePrinter } from 'react-icons/hi';
+import {
+  HiOutlineFire, HiOutlineCheckCircle, HiOutlineClock, HiOutlinePrinter,
+  HiOutlineViewGrid, HiOutlineClipboardList, HiOutlineDesktopComputer
+} from 'react-icons/hi';
 import { useAuth } from '../context/AuthContext';
 
 const SOCKET_URL = '';
@@ -101,16 +104,66 @@ const KitchenPage = () => {
     );
   }
 
+  const pendientes = orders.filter(o => o.estado_cocina === 'PENDIENTE').length;
+  const preparando = orders.filter(o => o.estado_cocina === 'PREPARANDO').length;
+
   return (
     <Layout title="Pantalla de Cocina (KDS)">
-      <div className="flex justify-between items-center mb-6">
-        <p className="text-dark-300">Monitoreo en tiempo real de los pedidos a preparar.</p>
-        <div className="flex items-center gap-2 text-sm text-green-400 bg-green-500/10 px-3 py-1 rounded-full border border-green-500/20">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-          </span>
-          En Vivo
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-xl bg-teal-500/15 border border-teal-500/20 flex items-center justify-center text-teal-400 shrink-0">
+            <HiOutlineFire className="w-6 h-6" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-dark-50">Cocina</h2>
+            <p className="text-sm text-dark-400">Pedidos pendientes de preparación</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-sm text-green-400 bg-green-500/10 px-3 py-1 rounded-full border border-green-500/20">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+            </span>
+            En Vivo
+          </div>
+          <button
+            onClick={() => window.open('/kitchen/tv', '_blank')}
+            className="btn-secondary flex items-center gap-2 text-sm border-teal-500/30 text-teal-400 hover:bg-teal-500/10"
+          >
+            <HiOutlineDesktopComputer className="w-4 h-4" />
+            Pantalla TV
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div className="rounded-2xl p-4 bg-dark-800/70 border border-dark-700/50 flex flex-col justify-between h-[86px]">
+          <span className="text-dark-400 text-sm font-medium">Pedidos</span>
+          <div className="flex items-end justify-between">
+            <span className="text-3xl font-bold text-white leading-none">{orders.length}</span>
+            <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+              <HiOutlineViewGrid className="w-5 h-5 text-white" />
+            </div>
+          </div>
+        </div>
+        <div className="rounded-2xl p-4 bg-gradient-to-br from-blue-600 to-blue-500 shadow-lg flex flex-col justify-between h-[86px]">
+          <span className="text-white/80 text-sm font-medium">Comandas</span>
+          <div className="flex items-end justify-between">
+            <span className="text-3xl font-bold text-white leading-none">{preparando}</span>
+            <div className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center shrink-0">
+              <HiOutlineClipboardList className="w-5 h-5 text-white" />
+            </div>
+          </div>
+        </div>
+        <div className="rounded-2xl p-4 bg-gradient-to-br from-red-600 to-red-500 shadow-lg flex flex-col justify-between h-[86px]">
+          <span className="text-white/80 text-sm font-medium">Urgentes</span>
+          <div className="flex items-end justify-between">
+            <span className="text-3xl font-bold text-white leading-none">{pendientes}</span>
+            <div className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center shrink-0">
+              <HiOutlineFire className="w-5 h-5 text-white" />
+            </div>
+          </div>
         </div>
       </div>
 

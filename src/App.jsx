@@ -14,6 +14,9 @@ import SettingsPage from './pages/SettingsPage';
 import CajaPage from './pages/CajaPage';
 import KitchenPage from './pages/KitchenPage';
 import MesasPage from './pages/MesasPage';
+import ActivityPage from './pages/ActivityPage';
+import KitchenTVPage from './pages/KitchenTVPage';
+import ClientesPage from './pages/ClientesPage';
 
 const ProtectedRoute = ({ children, adminOnly = false }) => {
   const { user, loading } = useAuth();
@@ -86,11 +89,14 @@ function App() {
             <Route path="/dashboard" element={<ProtectedRoute adminOnly><DashboardPage /></ProtectedRoute>} />
             <Route path="/products" element={<ProtectedRoute adminOnly><ProductsPage /></ProtectedRoute>} />
             <Route path="/kitchen" element={<ProtectedRoute><KitchenPage /></ProtectedRoute>} />
+            <Route path="/kitchen/tv" element={<ProtectedRoute><KitchenTVPage /></ProtectedRoute>} />
             <Route path="/pos" element={<ProtectedRoute><POSPage /></ProtectedRoute>} />
             <Route path="/mesas" element={<ProtectedRoute><MesasPage /></ProtectedRoute>} />
             <Route path="/sales" element={<ProtectedRoute><SalesPage /></ProtectedRoute>} />
             <Route path="/caja" element={<ProtectedRoute><CajaPage /></ProtectedRoute>} />
             <Route path="/users" element={<ProtectedRoute adminOnly><UsersPage /></ProtectedRoute>} />
+            <Route path="/clientes" element={<ProtectedRoute adminOnly><ClientesPage /></ProtectedRoute>} />
+            <Route path="/activity" element={<ProtectedRoute adminOnly><ActivityPage /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute adminOnly><SettingsPage /></ProtectedRoute>} />
             <Route path="*" element={<Navigate to="/pos" replace />} />
           </Routes>

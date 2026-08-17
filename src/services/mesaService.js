@@ -7,4 +7,6 @@ export const mesaService = {
   remove: (id) => api.delete(`/mesas/${id}`),
   getCuenta: (id) => api.get(`/mesas/${id}/cuenta`),
   cobrar: (id, pagos) => api.post(`/mesas/${id}/cobrar`, { pagos }),
+  suspender: (id) => api.post(`/mesas/${id}/suspender`),
+  reactivar: (id) => api.post(`/mesas/${id}/reactivar`),
 };

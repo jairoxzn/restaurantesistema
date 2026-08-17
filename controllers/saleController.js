@@ -1,9 +1,11 @@
 const prisma = require('../config/db');
 const io = require('../socket');
+const logActivity = require('../utils/activityLog');
+const { normalizarTelefono } = require('./clienteController');
 
 const create = async (req, res) => {
   try {
-    const { items, metodo_pago, mesa_id } = req.body;
+    const { items, metodo_pago, mesa_id, cliente_telefono, cliente_nombre } = req.body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ message: 'La venta debe tener al menos un producto.' });
@@ -36,6 +38,19 @@ const create = async (req, res) => {
         if (!mesa) throw new Error('Mesa no encontrada.');
       }
 
+      // Cliente opcional: si mandan teléfono, se vincula (o se crea) el cliente,
+      // sin bloquear la venta si algo sale mal con esto.
+      let clienteId = null;
+      const telefonoNorm = normalizarTelefono(cliente_telefono);
+      if (telefonoNorm) {
+        const cliente = await tx.cliente.upsert({
+          where: { telefono: telefonoNorm },
+          update: cliente_nombre ? { nombre: cliente_nombre } : {},
+          create: { nombre: cliente_nombre || telefonoNorm, telefono: telefonoNorm }
+        });
+        clienteId = cliente.id;
+      }
+
       const total = formattedItems.reduce((sum, item) => sum + (item.cantidad * item.precio_unitario), 0);
       const tipo = parsedMesaId ? 'MESA' : 'LLEVAR';
       const estadoPago = parsedMesaId ? 'PENDIENTE' : 'PAGADO';
@@ -45,6 +60,7 @@ const create = async (req, res) => {
           usuario_id: req.user.id,
           caja_id: caja.id,
           mesa_id: parsedMesaId,
+          cliente_id: clienteId,
           tipo,
           estado_pago: estadoPago,
           total: parseFloat(total.toFixed(2)),
@@ -104,6 +120,7 @@ const create = async (req, res) => {
       include: {
         usuario: { select: { nombre: true } },
         mesa: { select: { nombre: true } },
+        cliente: { select: { nombre: true, telefono: true } },
         detalles: {
           include: { producto: { select: { nombre: true } } }
         }
@@ -114,6 +131,7 @@ const create = async (req, res) => {
       ...sale,
       usuario_nombre: sale.usuario?.nombre,
       mesa_nombre: sale.mesa?.nombre,
+      cliente_nombre: sale.cliente?.nombre,
       detalles: sale.detalles.map(d => ({ ...d, producto_nombre: d.producto?.nombre }))
     };
 
@@ -122,6 +140,13 @@ const create = async (req, res) => {
     } catch (err) {
       console.error('No se pudo emitir evento por socket', err);
     }
+
+    logActivity({
+      usuario: req.user,
+      accion: 'COMPRA',
+      descripcion: `Venta ${sale.tipo === 'MESA' ? `en ${sale.mesa_nombre || 'mesa'}` : 'para llevar'} #${sale.id} registrada. Total: ${Number(sale.total).toFixed(2)}`,
+      ip: req.ip,
+    });
 
     res.status(201).json({
       message: 'Venta registrada exitosamente.',

@@ -124,6 +124,7 @@ export const generateSaleReceipt = (sale, settings, format = '80mm') => {
       <span>Cajero: ${sale.usuario_nombre || 'Cajero'}</span>
       <span>Pago: ${(sale.metodo_pago || 'EFECTIVO').toUpperCase()}</span>
     </div>
+    ${sale.cliente_nombre ? `<div class="item-row"><span>Cliente: ${sale.cliente_nombre}</span></div>` : ''}
     <div class="divider"></div>
     <div class="item-row bold">
       <span class="qty">Cant</span>

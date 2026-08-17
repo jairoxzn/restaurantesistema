@@ -1,6 +1,7 @@
 const prisma = require('../config/db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const logActivity = require('../utils/activityLog');
 
 const login = async (req, res) => {
   try {
@@ -24,6 +25,13 @@ const login = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
+
+    logActivity({
+      usuario: user,
+      accion: 'LOGIN',
+      descripcion: `Inicio de sesión: ${user.nombre} (${user.email})`,
+      ip: req.ip,
+    });
 
     res.json({
       message: 'Login exitoso',

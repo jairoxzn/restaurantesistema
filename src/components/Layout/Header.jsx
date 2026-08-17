@@ -1,5 +1,6 @@
-import { HiOutlineMenuAlt2, HiOutlineBell } from 'react-icons/hi';
+import { HiOutlineMenuAlt2 } from 'react-icons/hi';
 import { useAuth } from '../../context/AuthContext';
+import NotificationBell from './NotificationBell';
 
 const Header = ({ onMenuClick, title }) => {
   const { user } = useAuth();
@@ -23,10 +24,7 @@ const Header = ({ onMenuClick, title }) => {
         </div>
 
         <div className="flex items-center gap-3">
-          <button className="relative p-2.5 rounded-xl text-dark-400 hover:text-dark-200 hover:bg-dark-800 transition-all">
-            <HiOutlineBell className="w-5 h-5" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary-500 rounded-full"></span>
-          </button>
+          <NotificationBell />
           <div className="hidden sm:flex items-center gap-3 pl-3 border-l border-dark-700/50">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-dark-900 font-bold text-xs">
               {user?.nombre?.charAt(0)?.toUpperCase()}

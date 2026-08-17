@@ -11,7 +11,7 @@ import toast from 'react-hot-toast';
 import {
   HiOutlineViewGrid, HiOutlinePlus, HiOutlinePencil, HiOutlineTrash,
   HiOutlineUserGroup, HiOutlineShoppingCart, HiOutlineCash,
-  HiOutlineX, HiOutlineCheckCircle
+  HiOutlineX, HiOutlineCheckCircle, HiOutlinePause, HiOutlinePlay
 } from 'react-icons/hi';
 
 const SOCKET_URL = '';
@@ -107,6 +107,26 @@ const MesasPage = () => {
     }
   };
 
+  const handleSuspenderMesa = async (mesa) => {
+    try {
+      await mesaService.suspender(mesa.id);
+      toast.success(`${mesa.nombre} suspendida`);
+      loadMesas();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Error al suspender la mesa');
+    }
+  };
+
+  const handleReactivarMesa = async (mesa) => {
+    try {
+      await mesaService.reactivar(mesa.id);
+      toast.success(`${mesa.nombre} reactivada`);
+      loadMesas();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Error al reactivar la mesa');
+    }
+  };
+
   // --- Cobro de cuenta (con división de pago) ---
 
   const openCobrar = async (mesa) => {
@@ -178,6 +198,25 @@ const MesasPage = () => {
         )}
       </div>
 
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {[
+          { label: 'Total Mesas', value: mesas.length, icon: HiOutlineViewGrid, from: 'from-blue-600', to: 'to-blue-500' },
+          { label: 'Disponibles', value: mesas.filter(m => m.estado === 'LIBRE').length, icon: HiOutlineCheckCircle, from: 'from-green-600', to: 'to-green-500' },
+          { label: 'Ocupadas', value: mesas.filter(m => m.estado === 'OCUPADA').length, icon: HiOutlineUserGroup, from: 'from-red-600', to: 'to-red-500' },
+          { label: 'Suspendidas', value: mesas.filter(m => m.estado === 'SUSPENDIDA').length, icon: HiOutlinePause, from: 'from-slate-600', to: 'to-slate-500' },
+        ].map(({ label, value, icon: Icon, from, to }) => (
+          <div key={label} className={`rounded-2xl p-4 bg-gradient-to-br ${from} ${to} shadow-lg flex flex-col justify-between h-[86px]`}>
+            <span className="text-white/80 text-sm font-medium">{label}</span>
+            <div className="flex items-end justify-between">
+              <span className="text-3xl font-bold text-white leading-none">{value}</span>
+              <div className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center shrink-0">
+                <Icon className="w-5 h-5 text-white" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
       {mesas.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-64 text-dark-500 glass-card">
           <HiOutlineViewGrid className="w-16 h-16 mb-4 opacity-50" />
@@ -188,10 +227,18 @@ const MesasPage = () => {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {mesas.map((mesa) => {
             const ocupada = mesa.estado === 'OCUPADA';
+            const suspendida = mesa.estado === 'SUSPENDIDA';
+            const borderColor = ocupada ? 'border-t-amber-500' : suspendida ? 'border-t-slate-500' : 'border-t-green-500';
+            const badgeClass = ocupada
+              ? 'badge bg-amber-500/15 text-amber-400 border border-amber-500/20'
+              : suspendida
+                ? 'badge bg-slate-500/15 text-slate-400 border border-slate-500/20'
+                : 'badge bg-green-500/15 text-green-400 border border-green-500/20';
+            const badgeLabel = ocupada ? 'OCUPADA' : suspendida ? 'SUSPENDIDA' : 'LIBRE';
             return (
               <div
                 key={mesa.id}
-                className={`glass-card p-4 flex flex-col gap-3 border-t-4 ${ocupada ? 'border-t-amber-500' : 'border-t-green-500'}`}
+                className={`glass-card p-4 flex flex-col gap-3 border-t-4 ${borderColor} ${suspendida ? 'opacity-70' : ''}`}
               >
                 <div className="flex items-start justify-between">
                   <div>
@@ -201,9 +248,7 @@ const MesasPage = () => {
                       {mesa.capacidad} personas
                     </p>
                   </div>
-                  <span className={ocupada ? 'badge bg-amber-500/15 text-amber-400 border border-amber-500/20' : 'badge bg-green-500/15 text-green-400 border border-green-500/20'}>
-                    {ocupada ? 'OCUPADA' : 'LIBRE'}
-                  </span>
+                  <span className={badgeClass}>{badgeLabel}</span>
                 </div>
 
                 {ocupada && (
@@ -214,27 +259,48 @@ const MesasPage = () => {
                   </div>
                 )}
 
-                <div className="flex gap-2 mt-auto">
-                  <button
-                    onClick={() => navigate(`/pos?mesa=${mesa.id}`)}
-                    className="btn-secondary flex-1 text-sm py-2 flex items-center justify-center gap-1.5"
-                  >
-                    <HiOutlineShoppingCart className="w-4 h-4" />
-                    {ocupada ? 'Agregar' : 'Abrir'}
-                  </button>
-                  {ocupada && (
+                {suspendida ? (
+                  isAdmin() && (
                     <button
-                      onClick={() => openCobrar(mesa)}
-                      className="btn-primary flex-1 text-sm py-2 flex items-center justify-center gap-1.5"
+                      onClick={() => handleReactivarMesa(mesa)}
+                      className="btn-secondary mt-auto text-sm py-2 flex items-center justify-center gap-1.5"
                     >
-                      <HiOutlineCash className="w-4 h-4" />
-                      Cobrar
+                      <HiOutlinePlay className="w-4 h-4" />
+                      Reactivar
                     </button>
-                  )}
-                </div>
+                  )
+                ) : (
+                  <div className="flex gap-2 mt-auto">
+                    <button
+                      onClick={() => navigate(`/pos?mesa=${mesa.id}`)}
+                      className="btn-secondary flex-1 text-sm py-2 flex items-center justify-center gap-1.5"
+                    >
+                      <HiOutlineShoppingCart className="w-4 h-4" />
+                      {ocupada ? 'Agregar' : 'Abrir'}
+                    </button>
+                    {ocupada && (
+                      <button
+                        onClick={() => openCobrar(mesa)}
+                        className="btn-primary flex-1 text-sm py-2 flex items-center justify-center gap-1.5"
+                      >
+                        <HiOutlineCash className="w-4 h-4" />
+                        Cobrar
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 {isAdmin() && (
                   <div className="flex gap-2 justify-end pt-1 border-t border-dark-700/50 -mx-4 px-4 -mb-4 pb-2 mt-1">
+                    {!ocupada && !suspendida && (
+                      <button
+                        onClick={() => handleSuspenderMesa(mesa)}
+                        className="p-1.5 text-dark-400 hover:text-slate-300 transition-colors"
+                        title="Suspender mesa"
+                      >
+                        <HiOutlinePause className="w-4 h-4" />
+                      </button>
+                    )}
                     <button onClick={() => openEditForm(mesa)} className="p-1.5 text-dark-400 hover:text-primary-400 transition-colors">
                       <HiOutlinePencil className="w-4 h-4" />
                     </button>

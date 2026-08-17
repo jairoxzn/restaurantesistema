@@ -1,4 +1,5 @@
 const prisma = require('../config/db');
+const logActivity = require('../utils/activityLog');
 
 const getDesgloseSesion = async (cajaId, montoApertura) => {
   // Ventas directas (LLEVAR)
@@ -129,6 +130,13 @@ const abrirCaja = async (req, res) => {
       }
     });
 
+    logActivity({
+      usuario: req.user,
+      accion: 'CAJA_APERTURA',
+      descripcion: `Apertura de caja con S/ ${parseFloat(monto_apertura || 0).toFixed(2)}`,
+      ip: req.ip,
+    });
+
     res.status(201).json({ message: 'Caja abierta exitosamente' });
   } catch (error) {
     console.error('Error al abrir caja:', error);
@@ -184,6 +192,13 @@ const cerrarCaja = async (req, res) => {
       }
     });
 
+    logActivity({
+      usuario: req.user,
+      accion: 'CAJA_CIERRE',
+      descripcion: `Cierre de caja. Esperado: S/ ${esperado.total.toFixed(2)}, Declarado: S/ ${totalDeclarado.toFixed(2)}, Diferencia: S/ ${diferenciaTotal.toFixed(2)}`,
+      ip: req.ip,
+    });
+
     res.json({
       message: 'Caja cerrada exitosamente',
       diferencia: diferenciaTotal,
@@ -217,6 +232,13 @@ const agregarGasto = async (req, res) => {
         concepto,
         monto: parseFloat(monto)
       }
+    });
+
+    logActivity({
+      usuario: req.user,
+      accion: 'GASTO',
+      descripcion: `Gasto registrado: ${concepto} — S/ ${parseFloat(monto).toFixed(2)}`,
+      ip: req.ip,
     });
 
     res.status(201).json({ message: 'Gasto registrado exitosamente' });

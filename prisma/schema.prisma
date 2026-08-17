@@ -97,6 +97,7 @@ model Gasto {
 enum EstadoMesa {
   LIBRE
   OCUPADA
+  SUSPENDIDA
 }
 
 model Mesa {
@@ -151,6 +152,7 @@ model Venta {
   usuario_id     Int
   caja_id        Int?
   mesa_id        Int?
+  cliente_id     Int?
   tipo           TipoVenta    @default(LLEVAR)
   estado_pago    EstadoPago   @default(PAGADO)
   cierre_mesa_id Int?
@@ -162,6 +164,7 @@ model Venta {
   usuario        Usuario      @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
   caja           CajaSesion?  @relation(fields: [caja_id], references: [id])
   mesa           Mesa?        @relation(fields: [mesa_id], references: [id])
+  cliente        Cliente?     @relation(fields: [cliente_id], references: [id])
   cierreMesa     CierreMesa?  @relation(fields: [cierre_mesa_id], references: [id])
   detalles       DetalleVenta[]
 
@@ -215,4 +218,44 @@ model Kardex {
   usuario        Usuario  @relation(fields: [usuario_id], references: [id])
 
   @@map("kardex")
+}
+
+enum TipoAccion {
+  LOGIN
+  COMPRA
+  COBRO
+  CAJA_APERTURA
+  CAJA_CIERRE
+  GASTO
+}
+
+// Registro de actividad: log de auditoría de solo lectura/escritura (append-only).
+// No lleva relación FK a Usuario a propósito: el registro debe sobrevivir aunque
+// el usuario que hizo la acción sea eliminado después, guardando su nombre como
+// una "foto" del momento (usuario_nombre) además del id.
+model RegistroActividad {
+  id             Int        @id @default(autoincrement())
+  usuario_id     Int?
+  usuario_nombre String     @db.VarChar(100)
+  accion         TipoAccion
+  descripcion    String
+  ip             String?    @db.VarChar(64)
+  fecha          DateTime   @default(now()) @db.Timestamp(6)
+
+  @@index([fecha])
+  @@index([accion])
+  @@map("registro_actividad")
+}
+
+model Cliente {
+  id         Int      @id @default(autoincrement())
+  nombre     String   @db.VarChar(150)
+  telefono   String   @unique @db.VarChar(20)
+  email      String?  @db.VarChar(150)
+  notas      String?
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+
+  ventas     Venta[]
+
+  @@map("clientes")
 }

@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { publicService } from '../services/publicService';
-import { HiOutlineShoppingCart, HiX, HiMinus, HiPlus } from 'react-icons/hi';
+import { clienteService } from '../services/clienteService';
+import { HiOutlineShoppingCart, HiX, HiMinus, HiPlus, HiOutlineUser } from 'react-icons/hi';
 import { FaWhatsapp } from 'react-icons/fa';
 import { useSettings } from '../context/SettingsContext';
 import toast from 'react-hot-toast';
+
+const CLIENTE_STORAGE_KEY = 'menu_cliente';
 
 const MenuPage = () => {
   const { settings, loadingSettings } = useSettings();
@@ -11,7 +14,7 @@ const MenuPage = () => {
   const [products, setProducts] = useState([]);
   const [activeCategory, setActiveCategory] = useState(null);
   const [loading, setLoading] = useState(true);
-  
+
   const API_URL = '';
 
   const getLogoUrl = (url) => {
@@ -19,10 +22,15 @@ const MenuPage = () => {
     if (url.startsWith('http')) return url;
     return `${API_URL}/uploads/${url}`;
   };
-  
+
   // Local cart for public menu
   const [cart, setCart] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+
+  // Datos del cliente para el pedido por WhatsApp — se piden una vez y se
+  // recuerdan en este navegador para no volver a preguntarlos.
+  const [clienteModalOpen, setClienteModalOpen] = useState(false);
+  const [clienteForm, setClienteForm] = useState({ nombre: '', telefono: '' });
 
   useEffect(() => {
     loadData();
@@ -98,26 +106,54 @@ const MenuPage = () => {
     return cart.reduce((count, item) => count + item.cantidad, 0);
   };
 
-  const sendWhatsAppOrder = () => {
-    if (cart.length === 0) return;
-    
+  const enviarMensajeWhatsApp = (cliente) => {
     // Configura aquí el número de la cafetería
-    const phoneNumber = "51999999999"; 
-    
-    let message = "Hola! Quisiera hacer el siguiente pedido:\n\n";
+    const phoneNumber = "51999999999";
+
+    let message = `Hola! Soy ${cliente.nombre}, quisiera hacer el siguiente pedido:\n\n`;
     cart.forEach(item => {
       message += `- ${item.cantidad}x ${item.nombre} (S/ ${Number(item.precio).toFixed(2)})\n`;
     });
-    
+
     message += `\n*Total a pagar: S/ ${getCartTotal().toFixed(2)}*\n\n`;
     message += "Quedo a la espera de la confirmación.";
-    
+
     const encodedMessage = encodeURIComponent(message);
     window.open(`https://wa.me/${phoneNumber}?text=${encodedMessage}`, '_blank');
-    
+
     // Opcional: vaciar carrito después de pedir
     // setCart([]);
     // setIsCartOpen(false);
+  };
+
+  const sendWhatsAppOrder = () => {
+    if (cart.length === 0) return;
+
+    const guardado = localStorage.getItem(CLIENTE_STORAGE_KEY);
+    if (guardado) {
+      enviarMensajeWhatsApp(JSON.parse(guardado));
+      return;
+    }
+
+    // Primera vez en este navegador: pedimos nombre y teléfono antes de mandar el pedido.
+    setClienteForm({ nombre: '', telefono: '' });
+    setClienteModalOpen(true);
+  };
+
+  const handleConfirmarCliente = async (e) => {
+    e.preventDefault();
+    const cliente = { nombre: clienteForm.nombre.trim(), telefono: clienteForm.telefono.trim() };
+    if (!cliente.nombre || !cliente.telefono) return;
+
+    localStorage.setItem(CLIENTE_STORAGE_KEY, JSON.stringify(cliente));
+    try {
+      await clienteService.registrarPublico(cliente);
+    } catch (error) {
+      // No bloquea el pedido si el registro del cliente falla por algún motivo.
+      console.error('No se pudo registrar el cliente:', error);
+    }
+    setClienteModalOpen(false);
+    enviarMensajeWhatsApp(cliente);
   };
 
   const moneda = settings?.moneda || 'S/';
@@ -329,7 +365,55 @@ const MenuPage = () => {
                 El pedido será enviado al WhatsApp de la cafetería para su preparación. Podrás pagar al recoger.
               </p>
             </div>
-            
+
+          </div>
+        </div>
+      )}
+
+      {/* Modal: datos del cliente antes de mandar el pedido por WhatsApp (solo la primera vez) */}
+      {clienteModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-dark-950/80 backdrop-blur-sm" onClick={() => setClienteModalOpen(false)}></div>
+          <div className="relative bg-dark-900 border border-white/10 w-full sm:w-[420px] rounded-t-3xl sm:rounded-3xl shadow-2xl animate-slideUp p-6">
+            <div className="flex items-center gap-3 mb-1">
+              <div className="w-10 h-10 rounded-xl bg-primary-500/15 border border-primary-500/30 flex items-center justify-center text-primary-400 shrink-0">
+                <HiOutlineUser className="w-5 h-5" />
+              </div>
+              <h2 className="text-lg font-bold text-white">¿A nombre de quién?</h2>
+            </div>
+            <p className="text-sm text-dark-400 mb-5">Solo te lo pedimos la primera vez, para que la cafetería sepa quién hace el pedido.</p>
+            <form onSubmit={handleConfirmarCliente} className="space-y-4">
+              <div>
+                <label className="text-xs text-dark-400 font-medium mb-1.5 block">Nombre</label>
+                <input
+                  type="text"
+                  required
+                  value={clienteForm.nombre}
+                  onChange={(e) => setClienteForm({ ...clienteForm, nombre: e.target.value })}
+                  className="input-field"
+                  placeholder="Tu nombre"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="text-xs text-dark-400 font-medium mb-1.5 block">Teléfono</label>
+                <input
+                  type="tel"
+                  required
+                  value={clienteForm.telefono}
+                  onChange={(e) => setClienteForm({ ...clienteForm, telefono: e.target.value })}
+                  className="input-field"
+                  placeholder="987654321"
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#20bd5a] text-white transition-all active:scale-95"
+              >
+                <FaWhatsapp className="w-5 h-5" />
+                Continuar a WhatsApp
+              </button>
+            </form>
           </div>
         </div>
       )}
