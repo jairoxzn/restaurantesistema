@@ -2,16 +2,28 @@ const prisma = require('../config/db');
 const logActivity = require('../utils/activityLog');
 
 const getDesgloseSesion = async (cajaId, montoApertura) => {
-  // Ventas directas (LLEVAR)
+  // Ventas directas (LLEVAR) con un solo método de pago. Las de pago mixto
+  // (metodo_pago = 'MIXTO') se excluyen acá y se desglosan aparte desde
+  // pagos_venta, para no perder el detalle real de cuánto fue efectivo/yape/etc.
   const ventasDirectas = await prisma.venta.groupBy({
     by: ['metodo_pago'],
     where: {
       caja_id: cajaId,
       tipo: 'LLEVAR',
-      estado_pago: 'PAGADO'
+      estado_pago: 'PAGADO',
+      metodo_pago: { not: 'MIXTO' }
     },
     _sum: { total: true }
   });
+
+  // Desglose real de las ventas de mostrador pagadas con más de un método.
+  const pagosVentaMixta = await prisma.$queryRaw`
+    SELECT pv.metodo_pago, COALESCE(SUM(pv.monto), 0) as total
+    FROM pagos_venta pv
+    JOIN ventas v ON pv.venta_id = v.id
+    WHERE v.caja_id = ${cajaId} AND v.tipo = 'LLEVAR' AND v.estado_pago = 'PAGADO' AND v.metodo_pago = 'MIXTO'
+    GROUP BY pv.metodo_pago
+  `;
 
   // Pagos de mesa
   const pagosMesa = await prisma.$queryRaw`
@@ -43,6 +55,16 @@ const getDesgloseSesion = async (cajaId, montoApertura) => {
       desgloseVentas[metodo] += Number(v._sum.total || 0);
     } else if (metodo) {
       desgloseVentas[metodo] = Number(v._sum.total || 0);
+    }
+  });
+
+  // Mapear ventas de mostrador con pago mixto
+  pagosVentaMixta.forEach(p => {
+    const metodo = (p.metodo_pago || '').toLowerCase();
+    if (desgloseVentas[metodo] !== undefined) {
+      desgloseVentas[metodo] += Number(p.total || 0);
+    } else if (metodo) {
+      desgloseVentas[metodo] = Number(p.total || 0);
     }
   });
 

@@ -167,8 +167,25 @@ model Venta {
   cliente        Cliente?     @relation(fields: [cliente_id], references: [id])
   cierreMesa     CierreMesa?  @relation(fields: [cierre_mesa_id], references: [id])
   detalles       DetalleVenta[]
+  pagos          PagoVenta[]
 
   @@map("ventas")
+}
+
+// Desglose de pago mixto para ventas de mostrador (para llevar), análogo a
+// PagoMesa. Cuando la venta se paga con un solo método, igual se guarda una
+// fila acá (redundante con Venta.metodo_pago) para que el reporte de caja
+// tenga una sola fuente consistente si en el futuro se necesita.
+model PagoVenta {
+  id          Int      @id @default(autoincrement())
+  venta_id    Int
+  metodo_pago String   @db.VarChar(50)
+  monto       Decimal  @db.Decimal(10, 2)
+  fecha       DateTime? @default(now()) @db.Timestamp(6)
+
+  venta       Venta    @relation(fields: [venta_id], references: [id], onDelete: Cascade)
+
+  @@map("pagos_venta")
 }
 
 model PagoMesa {

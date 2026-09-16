@@ -5,15 +5,16 @@ const { normalizarTelefono } = require('./clienteController');
 
 const create = async (req, res) => {
   try {
-    const { items, metodo_pago, mesa_id, cliente_telefono, cliente_nombre } = req.body;
+    const { items, metodo_pago, mesa_id, cliente_telefono, cliente_nombre, pagos } = req.body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ message: 'La venta debe tener al menos un producto.' });
     }
 
     const parsedMesaId = mesa_id ? parseInt(mesa_id, 10) : null;
+    const tienePagos = Array.isArray(pagos) && pagos.length > 0;
 
-    if (!parsedMesaId && !metodo_pago) {
+    if (!parsedMesaId && !tienePagos && !metodo_pago) {
       return res.status(400).json({ message: 'Método de pago requerido.' });
     }
 
@@ -55,6 +56,24 @@ const create = async (req, res) => {
       const tipo = parsedMesaId ? 'MESA' : 'LLEVAR';
       const estadoPago = parsedMesaId ? 'PENDIENTE' : 'PAGADO';
 
+      // Pago mixto (mostrador): las comandas de mesa no llevan pago todavía
+      // (se cobran después desde /mesas), así que esto solo aplica a "para llevar".
+      let metodoFinal = null;
+      let pagosParaCrear = [];
+      if (!parsedMesaId) {
+        const pagosInput = tienePagos
+          ? pagos.map(p => ({ metodo_pago: p.metodo_pago, monto: parseFloat(p.monto) }))
+          : [{ metodo_pago, monto: total }];
+
+        const totalPagos = pagosInput.reduce((sum, p) => sum + p.monto, 0);
+        if (Math.abs(totalPagos - total) > 0.01) {
+          throw new Error(`El total pagado (${totalPagos.toFixed(2)}) no coincide con el total de la venta (${total.toFixed(2)}).`);
+        }
+
+        metodoFinal = pagosInput.length === 1 ? pagosInput[0].metodo_pago : 'MIXTO';
+        pagosParaCrear = pagosInput;
+      }
+
       const venta = await tx.venta.create({
         data: {
           usuario_id: req.user.id,
@@ -64,12 +83,23 @@ const create = async (req, res) => {
           tipo,
           estado_pago: estadoPago,
           total: parseFloat(total.toFixed(2)),
-          metodo_pago: parsedMesaId ? null : metodo_pago
+          metodo_pago: metodoFinal,
+          ...(pagosParaCrear.length > 0 && { pagos: { create: pagosParaCrear } })
         }
       });
 
+      // Se trae el stock de todos los productos en una sola consulta (en vez de un
+      // findUnique por item) para minimizar los round-trips dentro de la transacción
+      // interactiva y evitar que expire su timeout contra la BD remota (Neon).
+      const productIds = [...new Set(formattedItems.map(item => item.producto_id))];
+      const products = await tx.producto.findMany({ where: { id: { in: productIds } } });
+      const productMap = new Map(products.map(p => [p.id, p]));
+
+      const detalleData = [];
+      const kardexData = [];
+
       for (const item of formattedItems) {
-        const product = await tx.producto.findUnique({ where: { id: item.producto_id } });
+        const product = productMap.get(item.producto_id);
         if (!product) {
           throw new Error(`Producto con ID ${item.producto_id} no encontrado.`);
         }
@@ -77,31 +107,37 @@ const create = async (req, res) => {
           throw new Error(`Stock insuficiente para "${product.nombre}". Disponible: ${product.stock}`);
         }
 
-        await tx.detalleVenta.create({
-          data: {
-            venta_id: venta.id,
-            producto_id: item.producto_id,
-            cantidad: item.cantidad,
-            precio_unitario: item.precio_unitario
-          }
-        });
-
         const newStock = product.stock - item.cantidad;
-        await tx.producto.update({
-          where: { id: item.producto_id },
-          data: { stock: newStock }
+
+        detalleData.push({
+          venta_id: venta.id,
+          producto_id: item.producto_id,
+          cantidad: item.cantidad,
+          precio_unitario: item.precio_unitario
         });
 
-        await tx.kardex.create({
-          data: {
-            producto_id: item.producto_id,
-            usuario_id: req.user.id,
-            tipo: 'VENTA',
-            cantidad: item.cantidad,
-            stock_anterior: product.stock,
-            stock_nuevo: newStock,
-            motivo: `Venta #${venta.id}`
-          }
+        kardexData.push({
+          producto_id: item.producto_id,
+          usuario_id: req.user.id,
+          tipo: 'VENTA',
+          cantidad: item.cantidad,
+          stock_anterior: product.stock,
+          stock_nuevo: newStock,
+          motivo: `Venta #${venta.id}`
+        });
+
+        // Se actualiza en memoria (no en BD) para que si el mismo producto aparece
+        // dos veces en el carrito, el segundo descuento parta del stock ya restado.
+        productMap.set(item.producto_id, { ...product, stock: newStock });
+      }
+
+      await tx.detalleVenta.createMany({ data: detalleData });
+      await tx.kardex.createMany({ data: kardexData });
+
+      for (const [producto_id, product] of productMap) {
+        await tx.producto.update({
+          where: { id: producto_id },
+          data: { stock: product.stock }
         });
       }
 
@@ -113,7 +149,7 @@ const create = async (req, res) => {
       }
 
       return venta.id;
-    });
+    }, { maxWait: 10000, timeout: 20000 });
 
     const sale = await prisma.venta.findUnique({
       where: { id: result },
@@ -123,7 +159,8 @@ const create = async (req, res) => {
         cliente: { select: { nombre: true, telefono: true } },
         detalles: {
           include: { producto: { select: { nombre: true } } }
-        }
+        },
+        pagos: true
       }
     });
 
@@ -160,7 +197,7 @@ const create = async (req, res) => {
       'La venta debe tener al menos un producto.',
       'Método de pago requerido.'
     ];
-    const isUserError = knownErrors.includes(error.message) || error.message.startsWith('Producto con ID') || error.message.startsWith('Stock insuficiente');
+    const isUserError = knownErrors.includes(error.message) || error.message.startsWith('Producto con ID') || error.message.startsWith('Stock insuficiente') || error.message.startsWith('El total pagado');
     res.status(isUserError ? 400 : 500).json({ message: isUserError ? error.message : 'Error del servidor.' });
   }
 };
@@ -207,7 +244,8 @@ const getById = async (req, res) => {
         usuario: { select: { nombre: true } },
         detalles: {
           include: { producto: { select: { nombre: true } } }
-        }
+        },
+        pagos: true
       }
     });
 

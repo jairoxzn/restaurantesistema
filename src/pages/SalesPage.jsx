@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import Layout from '../components/Layout/Layout';
 import Modal from '../components/UI/Modal';
+import ReceiptPreviewModal from '../components/UI/ReceiptPreviewModal';
 import { saleService } from '../services/saleService';
 import { useSettings } from '../context/SettingsContext';
-import { generateSaleReceipt } from '../utils/receipt';
+import { generateSaleReceipt, buildSaleReceiptContent } from '../utils/receipt';
 import { exportVentasReportExcel, exportVentasReportPDF } from '../utils/exportReports';
 import toast from 'react-hot-toast';
-import { 
-  HiOutlineEye, HiOutlineCash, HiOutlineCreditCard, 
+import {
+  HiOutlineEye, HiOutlineCash, HiOutlineCreditCard, HiOutlineSwitchHorizontal,
   HiOutlineDocumentText, HiOutlineCalendar, HiOutlineDownload
 } from 'react-icons/hi';
 
@@ -19,6 +20,7 @@ const SalesPage = () => {
   const [loading, setLoading] = useState(true);
   const [selectedSale, setSelectedSale] = useState(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [receiptPreview, setReceiptPreview] = useState(null);
 
   // Date filters
   const [fechaInicio, setFechaInicio] = useState('');
@@ -58,15 +60,22 @@ const SalesPage = () => {
     }
   };
 
-  const handleReprint = (sale) => {
-    generateSaleReceipt(sale, settings);
-    toast.success('Ticket enviado a impresora');
+  const handleReprint = async (sale) => {
+    // La fila de la tabla no trae "detalles" (solo lo incluye getById), así que
+    // recargamos completo para que la vista previa no salga con los ítems vacíos.
+    try {
+      const res = await saleService.getById(sale.id);
+      setReceiptPreview(res.data);
+    } catch (error) {
+      toast.error('Error al cargar el comprobante');
+    }
   };
 
   const getPaymentIcon = (method) => {
     switch ((method || '').toLowerCase()) {
       case 'efectivo': return <HiOutlineCash className="w-4 h-4" />;
       case 'yape': case 'plin': case 'tarjeta': return <HiOutlineCreditCard className="w-4 h-4" />;
+      case 'mixto': return <HiOutlineSwitchHorizontal className="w-4 h-4" />;
       default: return <HiOutlineCash className="w-4 h-4" />;
     }
   };
@@ -76,6 +85,7 @@ const SalesPage = () => {
       case 'efectivo': return 'bg-green-500/15 text-green-400 border-green-500/20';
       case 'yape': return 'bg-purple-500/15 text-purple-400 border-purple-500/20';
       case 'plin': return 'bg-teal-500/15 text-teal-400 border-teal-500/20';
+      case 'mixto': return 'bg-orange-500/15 text-orange-400 border-orange-500/20';
       case 'tarjeta': return 'bg-blue-500/15 text-blue-400 border-blue-500/20';
       default: return 'bg-dark-600/15 text-dark-400 border-dark-500/20';
     }
@@ -218,6 +228,20 @@ const SalesPage = () => {
               </div>
             </div>
 
+            {selectedSale.metodo_pago === 'MIXTO' && selectedSale.pagos?.length > 0 && (
+              <div className="bg-dark-900/50 rounded-xl p-3">
+                <p className="text-xs text-dark-500 mb-2">Desglose de pago</p>
+                <div className="space-y-1">
+                  {selectedSale.pagos.map((p) => (
+                    <div key={p.id} className="flex justify-between text-sm">
+                      <span className="text-dark-400 uppercase">{p.metodo_pago}</span>
+                      <span className="text-dark-200 font-medium">{moneda} {Number(p.monto).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="bg-dark-900/50 rounded-xl p-4">
               <p className="text-sm font-semibold text-dark-200 mb-3">Detalle de productos</p>
               <div className="space-y-2">
@@ -240,6 +264,18 @@ const SalesPage = () => {
           </div>
         )}
       </Modal>
+
+      {/* Vista previa del voucher antes de reimprimir */}
+      <ReceiptPreviewModal
+        isOpen={!!receiptPreview}
+        onClose={() => setReceiptPreview(null)}
+        contentHtml={receiptPreview ? buildSaleReceiptContent(receiptPreview, settings) : ''}
+        widthMm={80}
+        onPrint={() => {
+          generateSaleReceipt(receiptPreview, settings);
+          toast.success('Ticket enviado a impresora');
+        }}
+      />
     </Layout>
   );
 };

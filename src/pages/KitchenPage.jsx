@@ -4,6 +4,7 @@ import Layout from '../components/Layout/Layout';
 import { kdsService } from '../services/kdsService';
 import { useSettings } from '../context/SettingsContext';
 import { printKitchenTicket } from '../utils/receipt';
+import { getElapsedMinutes, formatElapsed, getUrgencyLevel, URGENCY_BADGE_CLASSES, URGENCY_RING_CLASSES } from '../utils/elapsedTime';
 import toast from 'react-hot-toast';
 import {
   HiOutlineFire, HiOutlineCheckCircle, HiOutlineClock, HiOutlinePrinter,
@@ -16,7 +17,13 @@ const SOCKET_URL = '';
 const KitchenPage = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [now, setNow] = useState(new Date());
   const { settings } = useSettings();
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 10000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     loadOrders();
@@ -175,14 +182,17 @@ const KitchenPage = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {orders.map((order) => (
-            <div 
-              key={order.id} 
+          {orders.map((order) => {
+            const elapsedMin = getElapsedMinutes(order.fecha, now);
+            const urgency = order.estado_cocina === 'LISTO' ? 'normal' : getUrgencyLevel(elapsedMin);
+            return (
+            <div
+              key={order.id}
               className={`flex flex-col rounded-2xl overflow-hidden border-2 transition-all duration-300
-                ${order.estado_cocina === 'PENDIENTE' ? 'border-red-500/30 bg-red-950/10 shadow-red-500/10' : 
-                  order.estado_cocina === 'PREPARANDO' ? 'border-yellow-500/30 bg-yellow-950/10 shadow-yellow-500/10' : 
+                ${order.estado_cocina === 'PENDIENTE' ? 'border-red-500/30 bg-red-950/10 shadow-red-500/10' :
+                  order.estado_cocina === 'PREPARANDO' ? 'border-yellow-500/30 bg-yellow-950/10 shadow-yellow-500/10' :
                   'border-green-500/30 bg-green-950/10 shadow-green-500/10'
-                } shadow-lg relative`}
+                } shadow-lg relative ${URGENCY_RING_CLASSES[urgency]}`}
             >
               {/* Header */}
               <div className="p-4 border-b border-white/5 flex justify-between items-start bg-dark-900/40">
@@ -190,18 +200,23 @@ const KitchenPage = () => {
                   <h3 className="text-2xl font-bold text-white flex items-center gap-2">
                     {order.mesa_nombre ? order.mesa_nombre : `Pedido #${order.id}`}
                   </h3>
-                  <p className="text-xs text-dark-400 mt-1 flex items-center gap-1">
-                    <HiOutlineClock className="w-3 h-3" />
-                    {new Date(order.fecha).toLocaleTimeString('es-PE')}
-                    {order.mesa_nombre && <span className="text-dark-500">· Pedido #{order.id}</span>}
-                  </p>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <p className="text-xs text-dark-400 flex items-center gap-1">
+                      <HiOutlineClock className="w-3 h-3" />
+                      {new Date(order.fecha).toLocaleTimeString('es-PE')}
+                      {order.mesa_nombre && <span className="text-dark-500">· Pedido #{order.id}</span>}
+                    </p>
+                    <span className={`px-2 py-0.5 rounded-full border text-[11px] font-bold ${URGENCY_BADGE_CLASSES[urgency]}`}>
+                      {formatElapsed(elapsedMin)}
+                    </span>
+                  </div>
                 </div>
                 <div className="flex flex-col items-end gap-2">
                   <div className={`px-3 py-1 rounded-full border text-xs font-bold uppercase tracking-wider ${getStatusColor(order.estado_cocina)}`}>
                     {order.estado_cocina}
                   </div>
-                  <button 
-                    onClick={() => handlePrintTicket(order)} 
+                  <button
+                    onClick={() => handlePrintTicket(order)}
                     className="text-xs text-primary-400 hover:text-primary-300 flex items-center gap-1 p-1 bg-primary-500/10 rounded-lg border border-primary-500/20"
                     title="Imprimir comanda térmica"
                   >
@@ -248,7 +263,8 @@ const KitchenPage = () => {
                 )}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </Layout>

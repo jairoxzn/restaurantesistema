@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import Layout from '../components/Layout/Layout';
 import Modal from '../components/UI/Modal';
+import ReceiptPreviewModal from '../components/UI/ReceiptPreviewModal';
 import { productService } from '../services/productService';
 import { categoryService } from '../services/categoryService';
 import { saleService } from '../services/saleService';
@@ -10,11 +11,11 @@ import { clienteService } from '../services/clienteService';
 import { useCart } from '../context/CartContext';
 import { useSettings } from '../context/SettingsContext';
 import toast from 'react-hot-toast';
-import { generateSaleReceipt, printKitchenTicket } from '../utils/receipt';
+import { generateSaleReceipt, buildSaleReceiptContent, printKitchenTicket } from '../utils/receipt';
 import {
   HiOutlineSearch, HiOutlinePlus, HiOutlineMinus, HiOutlineTrash,
-  HiOutlineShoppingCart, HiOutlineCash, HiOutlineCreditCard,
-  HiOutlinePhotograph, HiOutlineX, HiOutlineCheckCircle, HiOutlineDocumentText,
+  HiOutlineShoppingCart, HiOutlineCash,
+  HiOutlineX, HiOutlineCheckCircle, HiOutlineDocumentText,
   HiOutlineViewGrid, HiOutlineArrowLeft, HiOutlineIdentification, HiOutlineCheck
 } from 'react-icons/hi';
 
@@ -30,10 +31,11 @@ const POSPage = () => {
   const [activeCategory, setActiveCategory] = useState('');
   const [loading, setLoading] = useState(true);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
-  const [metodoPago, setMetodoPago] = useState('efectivo');
+  const [pagos, setPagos] = useState([{ metodo_pago: 'efectivo', monto: '' }]);
   const [processing, setProcessing] = useState(false);
   const [showCart, setShowCart] = useState(false);
   const [mesaCuenta, setMesaCuenta] = useState(null);
+  const [receiptPreview, setReceiptPreview] = useState(null);
 
   // Cliente opcional al cobrar (autocompleta si ya existe por teléfono)
   const [clienteTelefono, setClienteTelefono] = useState('');
@@ -120,8 +122,28 @@ const POSPage = () => {
     }
   };
 
+  const openPaymentModal = () => {
+    setPagos([{ metodo_pago: 'efectivo', monto: getTotal().toFixed(2) }]);
+    setPaymentModalOpen(true);
+  };
+
+  const totalPagos = pagos.reduce((sum, p) => sum + (Number(p.monto) || 0), 0);
+  const restante = Number((getTotal() - totalPagos).toFixed(2));
+
+  const addPagoLine = () => {
+    setPagos(prev => [...prev, { metodo_pago: 'efectivo', monto: restante > 0 ? restante.toFixed(2) : '' }]);
+  };
+
+  const removePagoLine = (index) => {
+    setPagos(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updatePagoLine = (index, field, value) => {
+    setPagos(prev => prev.map((p, i) => i === index ? { ...p, [field]: value } : p));
+  };
+
   const handlePayment = async () => {
-    if (items.length === 0) return;
+    if (items.length === 0 || Math.abs(restante) > 0.01) return;
     setProcessing(true);
     try {
       const saleData = {
@@ -130,7 +152,7 @@ const POSPage = () => {
           cantidad: item.cantidad,
           precio_unitario: item.precio,
         })),
-        metodo_pago: metodoPago,
+        pagos: pagos.map(p => ({ metodo_pago: p.metodo_pago, monto: Number(p.monto) })),
         ...(clienteTelefono.replace(/\D/g, '').length >= 6 && {
           cliente_telefono: clienteTelefono,
           cliente_nombre: clienteNombre || undefined,
@@ -138,7 +160,7 @@ const POSPage = () => {
       };
       const response = await saleService.create(saleData);
       toast.success('¡Venta registrada exitosamente!');
-      generateSaleReceipt(response.data.sale, settings);
+      setReceiptPreview(response.data.sale);
       clearCart();
       setPaymentModalOpen(false);
       setClienteTelefono('');
@@ -180,11 +202,11 @@ const POSPage = () => {
     }
   };
 
-  const paymentMethods = [
-    { id: 'efectivo', label: 'Efectivo', icon: HiOutlineCash, color: 'from-green-400 to-emerald-500' },
-    { id: 'yape', label: 'Yape', icon: HiOutlineCreditCard, color: 'from-purple-400 to-purple-600' },
-    { id: 'plin', label: 'Plin', icon: HiOutlineCreditCard, color: 'from-teal-400 to-cyan-600' },
-    { id: 'tarjeta', label: 'Tarjeta', icon: HiOutlineCreditCard, color: 'from-blue-400 to-blue-600' },
+  const paymentMethodOptions = [
+    { id: 'efectivo', label: 'Efectivo' },
+    { id: 'yape', label: 'Yape' },
+    { id: 'plin', label: 'Plin' },
+    { id: 'tarjeta', label: 'Tarjeta' },
   ];
 
   return (
@@ -386,7 +408,7 @@ const POSPage = () => {
                       )}
                     </button>
                   ) : (
-                    <button onClick={() => setPaymentModalOpen(true)} className="btn-primary flex-1 text-sm py-3 flex items-center justify-center gap-2">
+                    <button onClick={openPaymentModal} className="btn-primary flex-1 text-sm py-3 flex items-center justify-center gap-2">
                       <HiOutlineCash className="w-5 h-5" />
                       Cobrar
                     </button>
@@ -442,26 +464,46 @@ const POSPage = () => {
             )}
           </div>
 
-          <div>
-            <p className="label-field">Método de pago</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {paymentMethods.map(method => (
-                <button
-                  key={method.id}
-                  onClick={() => setMetodoPago(method.id)}
-                  className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all duration-300 ${
-                    metodoPago === method.id
-                      ? 'border-primary-500 bg-primary-500/10'
-                      : 'border-dark-700 hover:border-dark-600 bg-dark-800/50'
-                  }`}
+          <div className="space-y-3">
+            <p className="label-field">Métodos de pago</p>
+            {pagos.map((pago, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <select
+                  value={pago.metodo_pago}
+                  onChange={(e) => updatePagoLine(index, 'metodo_pago', e.target.value)}
+                  className="input-field flex-1"
                 >
-                  <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${method.color} flex items-center justify-center`}>
-                    <method.icon className="w-5 h-5 text-white" />
-                  </div>
-                  <span className="text-xs font-medium text-dark-300">{method.label}</span>
-                </button>
-              ))}
-            </div>
+                  {paymentMethodOptions.map(m => (
+                    <option key={m.id} value={m.id}>{m.label}</option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={pago.monto}
+                  onChange={(e) => updatePagoLine(index, 'monto', e.target.value)}
+                  className="input-field w-32"
+                  placeholder="0.00"
+                />
+                {pagos.length > 1 && (
+                  <button onClick={() => removePagoLine(index)} className="p-2 text-dark-500 hover:text-red-400 transition-colors">
+                    <HiOutlineX className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            ))}
+            <button onClick={addPagoLine} className="text-sm text-primary-400 hover:text-primary-300 flex items-center gap-1">
+              <HiOutlinePlus className="w-4 h-4" />
+              Agregar método de pago
+            </button>
+          </div>
+
+          <div className={`flex items-center justify-between p-3 rounded-xl border text-sm ${
+            Math.abs(restante) < 0.01 ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-red-500/10 border-red-500/20 text-red-400'
+          }`}>
+            <span>Restante por asignar</span>
+            <span className="font-bold">{settings?.moneda || 'S/'} {restante.toFixed(2)}</span>
           </div>
 
           <div className="bg-dark-900/50 rounded-xl p-4 space-y-2 max-h-40 overflow-y-auto">
@@ -475,7 +517,7 @@ const POSPage = () => {
 
           <button
             onClick={handlePayment}
-            disabled={processing}
+            disabled={processing || Math.abs(restante) > 0.01}
             className="btn-primary w-full py-4 text-lg flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {processing ? (
@@ -489,6 +531,15 @@ const POSPage = () => {
           </button>
         </div>
       </Modal>
+
+      {/* Vista previa del voucher tras cobrar (para llevar) */}
+      <ReceiptPreviewModal
+        isOpen={!!receiptPreview}
+        onClose={() => setReceiptPreview(null)}
+        contentHtml={receiptPreview ? buildSaleReceiptContent(receiptPreview, settings) : ''}
+        widthMm={80}
+        onPrint={() => generateSaleReceipt(receiptPreview, settings)}
+      />
     </Layout>
   );
 };

@@ -1,43 +1,53 @@
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+// El logo se sirve desde /uploads/<archivo>, salvo que ya sea una URL completa.
+const getLogoHtml = (settings) => {
+  const logoUrl = settings?.logo_url;
+  if (!logoUrl) return '';
+  const src = logoUrl.startsWith('http') ? logoUrl : `/uploads/${logoUrl}`;
+  return `<img src="${src}" class="logo" alt="Logo" onerror="this.remove()" />`;
+};
 
-// --- Imprimir directamente en ventana térmica ESC/POS / HTML ---
-export const printThermalDirect = (htmlContent, title = 'Ticket', widthMm = 80) => {
-  const printWindow = window.open('', '_blank', 'width=400,height=600');
-  if (!printWindow) return;
+// CSS compartido entre la ventana de impresión real y la vista previa en pantalla,
+// para que lo que se previsualiza sea idéntico a lo que sale impreso.
+const getTicketStyles = (widthMm) => `
+  @page { size: ${widthMm}mm ${widthMm}mm; margin: 0; }
+  html, body { width: ${widthMm}mm; }
+  body {
+    font-family: 'Courier New', Courier, monospace;
+    margin: 0;
+    padding: 2mm;
+    box-sizing: border-box;
+    font-size: 12px;
+    color: #000;
+    background: #fff;
+  }
+  .logo { display: block; max-width: 55%; max-height: 70px; margin: 0 auto 6px; object-fit: contain; }
+  .text-center { text-align: center; }
+  .text-right { text-align: right; }
+  .bold { font-weight: bold; }
+  .title { font-size: 16px; font-weight: bold; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; margin-bottom: 8px; }
+  .divider { border-top: 1px dashed #000; margin: 6px 0; }
+  .item-row { display: flex; justify-content: space-between; margin-bottom: 3px; }
+  .qty { font-weight: bold; width: 30px; }
+  .desc { flex: 1; padding: 0 4px; }
+  .price { font-weight: bold; width: 60px; text-align: right; }
+  .large-qty { font-size: 18px; font-weight: bold; }
+  .total-row { font-size: 14px; font-weight: bold; margin-top: 6px; display: flex; justify-content: space-between; }
+`;
 
-  printWindow.document.write(`
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <title>${title}</title>
-        <style>
-          @page { size: ${widthMm}mm ${widthMm}mm; margin: 0; }
-          html, body { width: ${widthMm}mm; }
-          body {
-            font-family: 'Courier New', Courier, monospace;
-            margin: 0;
-            padding: 2mm;
-            box-sizing: border-box;
-            font-size: 12px;
-            color: #000;
-          }
-          .text-center { text-align: center; }
-          .text-right { text-align: right; }
-          .bold { font-weight: bold; }
-          .title { font-size: 16px; font-weight: bold; margin-bottom: 4px; }
-          .subtitle { font-size: 13px; margin-bottom: 8px; }
-          .divider { border-top: 1px dashed #000; margin: 6px 0; }
-          .item-row { display: flex; justify-content: space-between; margin-bottom: 3px; }
-          .qty { font-weight: bold; width: 30px; }
-          .desc { flex: 1; padding: 0 4px; }
-          .price { font-weight: bold; width: 60px; text-align: right; }
-          .large-qty { font-size: 18px; font-weight: bold; }
-          .total-row { font-size: 14px; font-weight: bold; margin-top: 6px; display: flex; justify-content: space-between; }
-        </style>
-      </head>
-      <body>
-        ${htmlContent}
+// Arma el documento HTML completo del ticket. Con autoPrint=true incluye el
+// script que dispara la impresión sola (para la ventana térmica real);
+// sin él, es un documento estático apto para mostrarse en un <iframe> de vista previa.
+export const buildTicketDocument = (contentHtml, widthMm = 80, { title = 'Ticket', autoPrint = false } = {}) => `
+  <!DOCTYPE html>
+  <html>
+    <head>
+      <title>${title}</title>
+      <style>${getTicketStyles(widthMm)}</style>
+    </head>
+    <body>
+      ${contentHtml}
+      ${autoPrint ? `
         <script>
           window.onload = function() {
             // "auto" no es un valor válido para @page size combinado con un ancho fijo,
@@ -52,9 +62,17 @@ export const printThermalDirect = (htmlContent, title = 'Ticket', widthMm = 80) 
             setTimeout(function() { window.close(); }, 500);
           };
         </script>
-      </body>
-    </html>
-  `);
+      ` : ''}
+    </body>
+  </html>
+`;
+
+// --- Imprimir directamente en ventana térmica ESC/POS / HTML ---
+export const printThermalDirect = (htmlContent, title = 'Ticket', widthMm = 80) => {
+  const printWindow = window.open('', '_blank', 'width=400,height=600');
+  if (!printWindow) return;
+
+  printWindow.document.write(buildTicketDocument(htmlContent, widthMm, { title, autoPrint: true }));
   printWindow.document.close();
 };
 
@@ -99,8 +117,7 @@ export const printKitchenTicket = (order, settings, format = '80mm') => {
 };
 
 // --- Ticket de Cliente (Boleta Venta) ---
-export const generateSaleReceipt = (sale, settings, format = '80mm') => {
-  const width = format === '58mm' ? 58 : 80;
+export const buildSaleReceiptContent = (sale, settings) => {
   const moneda = settings?.moneda || 'S/';
 
   const itemsHtml = (sale.detalles || []).map(item => `
@@ -111,7 +128,20 @@ export const generateSaleReceipt = (sale, settings, format = '80mm') => {
     </div>
   `).join('');
 
-  const html = `
+  const esMixto = sale.metodo_pago === 'MIXTO' && Array.isArray(sale.pagos) && sale.pagos.length > 0;
+  const desglosePagoHtml = esMixto ? `
+    <div class="bold" style="margin-top: 4px; margin-bottom: 4px;">DESGLOSE DE PAGO:</div>
+    ${sale.pagos.map(p => `
+      <div class="item-row">
+        <span>${p.metodo_pago.toUpperCase()}:</span>
+        <span class="bold">${moneda} ${Number(p.monto).toFixed(2)}</span>
+      </div>
+    `).join('')}
+    <div class="divider"></div>
+  ` : '';
+
+  return `
+    ${getLogoHtml(settings)}
     <div class="text-center title">${(settings?.nombre_cafeteria || 'CAFETERIA COLCA').toUpperCase()}</div>
     <div class="text-center">${settings?.direccion || 'Arequipa, Perú'}</div>
     <div class="text-center">Tel: ${settings?.telefono || '987 654 321'}</div>
@@ -139,16 +169,19 @@ export const generateSaleReceipt = (sale, settings, format = '80mm') => {
       <span>${moneda} ${Number(sale.total).toFixed(2)}</span>
     </div>
     <div class="divider"></div>
+    ${desglosePagoHtml}
     <div class="text-center" style="margin-top: 10px;">¡Gracias por su visita!</div>
     <div class="text-center bold">${settings?.nombre_cafeteria || 'Cafetería Colca'}</div>
   `;
+};
 
-  printThermalDirect(html, `Boleta_${sale.id}`, width);
+export const generateSaleReceipt = (sale, settings, format = '80mm') => {
+  const width = format === '58mm' ? 58 : 80;
+  printThermalDirect(buildSaleReceiptContent(sale, settings), `Boleta_${sale.id}`, width);
 };
 
 // --- Recibo de Cuenta de Mesa ---
-export const generateCuentaReceipt = ({ mesa, comandas, pagos, total }, settings, format = '80mm') => {
-  const width = format === '58mm' ? 58 : 80;
+export const buildCuentaReceiptContent = ({ mesa, comandas, pagos, total }, settings) => {
   const moneda = settings?.moneda || 'S/';
   const allItems = comandas.flatMap(c => c.detalles || []);
 
@@ -167,7 +200,8 @@ export const generateCuentaReceipt = ({ mesa, comandas, pagos, total }, settings
     </div>
   `).join('');
 
-  const html = `
+  return `
+    ${getLogoHtml(settings)}
     <div class="text-center title">${(settings?.nombre_cafeteria || 'CAFETERIA COLCA').toUpperCase()}</div>
     <div class="text-center bold">CUENTA TOTAL - ${mesa.nombre.toUpperCase()}</div>
     <div class="divider"></div>
@@ -194,6 +228,9 @@ export const generateCuentaReceipt = ({ mesa, comandas, pagos, total }, settings
     <div class="divider"></div>
     <div class="text-center" style="margin-top: 10px;">¡Gracias por su preferencia!</div>
   `;
+};
 
-  printThermalDirect(html, `Cuenta_${mesa.nombre.replace(/\s+/g, '_')}`, width);
+export const generateCuentaReceipt = (data, settings, format = '80mm') => {
+  const width = format === '58mm' ? 58 : 80;
+  printThermalDirect(buildCuentaReceiptContent(data, settings), `Cuenta_${data.mesa.nombre.replace(/\s+/g, '_')}`, width);
 };

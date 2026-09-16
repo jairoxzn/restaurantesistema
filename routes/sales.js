@@ -14,7 +14,10 @@ router.post('/', auth, [
   body('items.*.cantidad').notEmpty().withMessage('Cantidad inválida'),
   body('items.*.precio_unitario').notEmpty().withMessage('Precio unitario inválido'),
   body('mesa_id').optional({ nullable: true }),
-  body('metodo_pago').optional({ nullable: true })
+  body('metodo_pago').optional({ nullable: true }),
+  body('pagos').optional({ nullable: true }).isArray({ min: 1 }).withMessage('Debe incluir al menos un método de pago'),
+  body('pagos.*.metodo_pago').if(body('pagos').exists()).notEmpty().withMessage('Método de pago requerido'),
+  body('pagos.*.monto').if(body('pagos').exists()).isFloat({ min: 0.01 }).withMessage('Monto inválido')
 ], validate, create);
 
 module.exports = router;

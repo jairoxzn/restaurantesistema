@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { kdsService } from '../services/kdsService';
+import { getElapsedMinutes, formatElapsed, getUrgencyLevel, URGENCY_BADGE_CLASSES, URGENCY_RING_CLASSES } from '../utils/elapsedTime';
 import {
   HiOutlineVolumeUp, HiOutlineVolumeOff, HiOutlineRefresh,
   HiOutlineArrowsExpand, HiX
@@ -192,8 +193,11 @@ const KitchenTVPage = () => {
         </div>
       ) : (
         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {orders.map((order) => (
-            <div key={order.id} className={`rounded-2xl border-2 p-5 ${getStatusColor(order.estado_cocina)}`}>
+          {orders.map((order) => {
+            const elapsedMin = getElapsedMinutes(order.fecha, now);
+            const urgency = order.estado_cocina === 'LISTO' ? 'normal' : getUrgencyLevel(elapsedMin);
+            return (
+            <div key={order.id} className={`rounded-2xl border-2 p-5 ${getStatusColor(order.estado_cocina)} ${URGENCY_RING_CLASSES[urgency]}`}>
               <div className="flex items-start justify-between mb-3">
                 <h3 className="text-2xl font-bold">
                   {order.mesa_nombre ? order.mesa_nombre : `Pedido #${order.id}`}
@@ -202,10 +206,15 @@ const KitchenTVPage = () => {
                   {order.estado_cocina}
                 </span>
               </div>
-              <p className="text-sm text-dark-400 mb-4">
-                {new Date(order.fecha).toLocaleTimeString('es-PE')}
-                {order.mesa_nombre && <span> · Pedido #{order.id}</span>}
-              </p>
+              <div className="flex items-center gap-2 mb-4">
+                <p className="text-sm text-dark-400">
+                  {new Date(order.fecha).toLocaleTimeString('es-PE')}
+                  {order.mesa_nombre && <span> · Pedido #{order.id}</span>}
+                </p>
+                <span className={`px-2 py-0.5 rounded-full border text-xs font-bold ${URGENCY_BADGE_CLASSES[urgency]}`}>
+                  {formatElapsed(elapsedMin)}
+                </span>
+              </div>
               <ul className="space-y-2">
                 {order.detalles?.map((item) => (
                   <li key={item.id} className="flex items-center gap-3">
@@ -217,7 +226,8 @@ const KitchenTVPage = () => {
                 ))}
               </ul>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

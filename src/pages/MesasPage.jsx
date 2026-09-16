@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import Layout from '../components/Layout/Layout';
 import Modal from '../components/UI/Modal';
+import ReceiptPreviewModal from '../components/UI/ReceiptPreviewModal';
 import { mesaService } from '../services/mesaService';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
-import { generateCuentaReceipt } from '../utils/receipt';
+import { generateCuentaReceipt, buildCuentaReceiptContent } from '../utils/receipt';
 import toast from 'react-hot-toast';
 import {
   HiOutlineViewGrid, HiOutlinePlus, HiOutlinePencil, HiOutlineTrash,
@@ -42,6 +43,7 @@ const MesasPage = () => {
   const [cuenta, setCuenta] = useState(null);
   const [pagos, setPagos] = useState([]);
   const [cobrando, setCobrando] = useState(false);
+  const [receiptPreview, setReceiptPreview] = useState(null);
 
   useEffect(() => {
     loadMesas();
@@ -165,7 +167,7 @@ const MesasPage = () => {
       const pagosPayload = pagos.map(p => ({ metodo_pago: p.metodo_pago, monto: Number(p.monto) }));
       await mesaService.cobrar(cobrarMesa.id, pagosPayload);
       toast.success('Cuenta cobrada exitosamente');
-      generateCuentaReceipt({ mesa: cuenta.mesa, comandas: cuenta.comandas, pagos: pagosPayload, total: cuenta.total }, settings);
+      setReceiptPreview({ mesa: cuenta.mesa, comandas: cuenta.comandas, pagos: pagosPayload, total: cuenta.total });
       setCobrarMesa(null);
       setCuenta(null);
       loadMesas();
@@ -273,18 +275,18 @@ const MesasPage = () => {
                   <div className="flex gap-2 mt-auto">
                     <button
                       onClick={() => navigate(`/pos?mesa=${mesa.id}`)}
-                      className="btn-secondary flex-1 text-sm py-2 flex items-center justify-center gap-1.5"
+                      className="btn-secondary flex-1 min-w-0 px-2 text-sm py-2 flex items-center justify-center gap-1.5"
                     >
-                      <HiOutlineShoppingCart className="w-4 h-4" />
-                      {ocupada ? 'Agregar' : 'Abrir'}
+                      <HiOutlineShoppingCart className="w-4 h-4 shrink-0" />
+                      <span className="truncate">{ocupada ? 'Agregar' : 'Abrir'}</span>
                     </button>
                     {ocupada && (
                       <button
                         onClick={() => openCobrar(mesa)}
-                        className="btn-primary flex-1 text-sm py-2 flex items-center justify-center gap-1.5"
+                        className="btn-primary flex-1 min-w-0 px-2 text-sm py-2 flex items-center justify-center gap-1.5"
                       >
-                        <HiOutlineCash className="w-4 h-4" />
-                        Cobrar
+                        <HiOutlineCash className="w-4 h-4 shrink-0" />
+                        <span className="truncate">Cobrar</span>
                       </button>
                     )}
                   </div>
@@ -437,6 +439,15 @@ const MesasPage = () => {
           </div>
         )}
       </Modal>
+
+      {/* Vista previa del voucher tras cobrar la cuenta */}
+      <ReceiptPreviewModal
+        isOpen={!!receiptPreview}
+        onClose={() => setReceiptPreview(null)}
+        contentHtml={receiptPreview ? buildCuentaReceiptContent(receiptPreview, settings) : ''}
+        widthMm={80}
+        onPrint={() => generateCuentaReceipt(receiptPreview, settings)}
+      />
     </Layout>
   );
 };
