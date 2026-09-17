@@ -24,7 +24,7 @@ const SettingsPage = () => {
         logo_url: settings.logo_url || '',
         logo: null,
         moneda: settings.moneda || 'S/',
-        tema_color: settings.tema_color || 'amber'
+        tema_color: settings.tema_color || 'red'
       });
       if (settings.logo_url) {
         setLogoPreview(settings.logo_url.startsWith('http') ? settings.logo_url : `${API_URL}/uploads/${settings.logo_url}`);
@@ -70,7 +70,8 @@ const SettingsPage = () => {
   };
 
   const themes = [
-    { id: 'amber', name: 'Naranja (Por defecto)', color: 'bg-amber-500' },
+    { id: 'red', name: 'Rojo (Por defecto)', color: 'bg-red-500' },
+    { id: 'amber', name: 'Naranja', color: 'bg-amber-500' },
     { id: 'blue', name: 'Azul', color: 'bg-blue-500' },
     { id: 'green', name: 'Verde', color: 'bg-green-500' },
     { id: 'rose', name: 'Rosa', color: 'bg-rose-500' },

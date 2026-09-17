@@ -428,7 +428,7 @@ const MesasPage = () => {
               className="btn-primary w-full py-4 text-lg flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {cobrando ? (
-                <div className="w-6 h-6 border-2 border-dark-900/30 border-t-dark-900 rounded-full animate-spin"></div>
+                <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
               ) : (
                 <>
                   <HiOutlineCheckCircle className="w-6 h-6" />

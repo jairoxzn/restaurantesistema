@@ -93,7 +93,7 @@ const UsersPage = () => {
     ), {
       duration: 10000,
       style: {
-        background: 'rgba(15, 23, 42, 0.98)',
+        background: 'rgba(9, 9, 11, 0.98)',
         border: '1px solid rgba(239, 68, 68, 0.3)',
         borderLeft: '4px solid #ef4444',
         maxWidth: '360px',
@@ -123,7 +123,7 @@ const UsersPage = () => {
               <div key={user.id} className="glass-card-hover p-5">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-dark-900 font-bold text-lg shadow-lg shadow-primary-500/20">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-primary-500/20">
                       {user.nombre.charAt(0).toUpperCase()}
                     </div>
                     <div>

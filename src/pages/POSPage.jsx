@@ -251,7 +251,7 @@ const POSPage = () => {
               <button
                 onClick={() => setActiveCategory('')}
                 className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all duration-300 ${
-                  !activeCategory ? 'bg-primary-500 text-dark-900 shadow-lg shadow-primary-500/25' : 'bg-dark-800 text-dark-400 hover:bg-dark-700'
+                  !activeCategory ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/25' : 'bg-dark-800 text-dark-400 hover:bg-dark-700'
                 }`}
               >
                 Todos
@@ -261,7 +261,7 @@ const POSPage = () => {
                   key={c.id}
                   onClick={() => setActiveCategory(c.id)}
                   className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all duration-300 ${
-                    activeCategory === c.id ? 'bg-primary-500 text-dark-900 shadow-lg shadow-primary-500/25' : 'bg-dark-800 text-dark-400 hover:bg-dark-700'
+                    activeCategory === c.id ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/25' : 'bg-dark-800 text-dark-400 hover:bg-dark-700'
                   }`}
                 >
                   {c.nombre}
@@ -399,7 +399,7 @@ const POSPage = () => {
                       className="btn-primary flex-1 text-sm py-3 flex items-center justify-center gap-2 disabled:opacity-50"
                     >
                       {processing ? (
-                        <div className="w-5 h-5 border-2 border-dark-900/30 border-t-dark-900 rounded-full animate-spin"></div>
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                       ) : (
                         <>
                           <HiOutlineDocumentText className="w-5 h-5" />
@@ -521,7 +521,7 @@ const POSPage = () => {
             className="btn-primary w-full py-4 text-lg flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {processing ? (
-              <div className="w-6 h-6 border-2 border-dark-900/30 border-t-dark-900 rounded-full animate-spin"></div>
+              <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
             ) : (
               <>
                 <HiOutlineCheckCircle className="w-6 h-6" />

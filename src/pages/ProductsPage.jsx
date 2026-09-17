@@ -144,7 +144,7 @@ const ProductsPage = () => {
     ), {
       duration: 10000,
       style: {
-        background: 'rgba(15, 23, 42, 0.98)',
+        background: 'rgba(9, 9, 11, 0.98)',
         border: '1px solid rgba(239, 68, 68, 0.3)',
         borderLeft: '4px solid #ef4444',
         maxWidth: '360px',

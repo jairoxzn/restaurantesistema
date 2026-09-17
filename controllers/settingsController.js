@@ -10,7 +10,7 @@ const getSettings = (req, res) => {
         nombre_cafeteria: "Cafetería Colca",
         logo_url: "",
         moneda: "S/",
-        tema_color: "amber"
+        tema_color: "red"
       });
     }
     const data = fs.readFileSync(settingsFile, 'utf8');
@@ -34,7 +34,7 @@ const updateSettings = (req, res) => {
       nombre_cafeteria: nombre_cafeteria || "Cafetería Colca",
       logo_url: logo_url || "",
       moneda: moneda || "S/",
-      tema_color: tema_color || "amber"
+      tema_color: tema_color || "red"
     };
 
     fs.writeFileSync(settingsFile, JSON.stringify(newSettings, null, 2));

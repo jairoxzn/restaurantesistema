@@ -110,7 +110,7 @@ const Sidebar = ({ isOpen, onClose }) => {
         <div className="p-4 border-t border-dark-700/50">
           <div className="glass-card p-4">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-dark-900 font-bold text-sm">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-bold text-sm">
                 {user?.nombre?.charAt(0)?.toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
@@ -157,7 +157,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                   value={`${window.location.origin}/menu`}
                   size={200}
                   bgColor={"#ffffff"}
-                  fgColor={"#0f172a"}
+                  fgColor={"#18181b"}
                   level={"Q"}
                   includeMargin={false}
                 />

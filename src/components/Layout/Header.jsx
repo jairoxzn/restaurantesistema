@@ -26,7 +26,7 @@ const Header = ({ onMenuClick, title }) => {
         <div className="flex items-center gap-3">
           <NotificationBell />
           <div className="hidden sm:flex items-center gap-3 pl-3 border-l border-dark-700/50">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-dark-900 font-bold text-xs">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-bold text-xs">
               {user?.nombre?.charAt(0)?.toUpperCase()}
             </div>
             <span className="text-sm font-medium text-dark-200">{user?.nombre}</span>

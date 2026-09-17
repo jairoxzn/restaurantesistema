@@ -6,16 +6,16 @@
 
 @layer base {
   :root {
-    --color-primary-50: 255 251 235;
-    --color-primary-100: 254 243 199;
-    --color-primary-200: 253 230 138;
-    --color-primary-300: 252 211 77;
-    --color-primary-400: 251 191 36;
-    --color-primary-500: 245 158 11;
-    --color-primary-600: 217 119 6;
-    --color-primary-700: 180 83 9;
-    --color-primary-800: 146 64 14;
-    --color-primary-900: 120 53 15;
+    --color-primary-50: 254 242 242;
+    --color-primary-100: 254 226 226;
+    --color-primary-200: 254 202 202;
+    --color-primary-300: 252 165 165;
+    --color-primary-400: 248 113 113;
+    --color-primary-500: 239 68 68;
+    --color-primary-600: 220 38 38;
+    --color-primary-700: 185 28 28;
+    --color-primary-800: 153 27 27;
+    --color-primary-900: 127 29 29;
   }
 
   body {
@@ -31,7 +31,7 @@
     @apply glass-card hover:border-primary-500/30 hover:shadow-primary-500/5 transition-all duration-300;
   }
   .btn-primary {
-    @apply bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-dark-900 font-semibold px-5 py-2.5 rounded-xl transition-all duration-300 shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40 active:scale-95;
+    @apply bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white font-semibold px-5 py-2.5 rounded-xl transition-all duration-300 shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40 active:scale-95;
   }
   .btn-secondary {
     @apply bg-dark-700 hover:bg-dark-600 text-dark-200 font-medium px-5 py-2.5 rounded-xl transition-all duration-300 border border-dark-600 hover:border-dark-500;

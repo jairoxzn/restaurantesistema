@@ -58,8 +58,8 @@ const DashboardPage = () => {
     datasets: [{
       label: `Ventas (${moneda})`,
       data: chartData.daily.map(d => d.total),
-      backgroundColor: 'rgba(245, 158, 11, 0.3)',
-      borderColor: 'rgba(245, 158, 11, 0.8)',
+      backgroundColor: 'rgba(239, 68, 68, 0.3)',
+      borderColor: 'rgba(239, 68, 68, 0.8)',
       borderWidth: 2,
       borderRadius: 8,
       borderSkipped: false,
@@ -71,13 +71,13 @@ const DashboardPage = () => {
     datasets: [{
       data: topProducts.map(p => p.total_vendido),
       backgroundColor: [
-        'rgba(245, 158, 11, 0.8)',
+        'rgba(239, 68, 68, 0.8)',
         'rgba(59, 130, 246, 0.8)',
         'rgba(34, 197, 94, 0.8)',
-        'rgba(239, 68, 68, 0.8)',
+        'rgba(245, 158, 11, 0.8)',
         'rgba(168, 85, 247, 0.8)',
       ],
-      borderColor: 'rgba(15, 23, 42, 1)',
+      borderColor: 'rgba(24, 24, 27, 1)',
       borderWidth: 3,
     }]
   } : null;
@@ -88,18 +88,18 @@ const DashboardPage = () => {
     plugins: {
       legend: { display: false },
       tooltip: {
-        backgroundColor: 'rgba(30, 41, 59, 0.95)',
-        titleColor: '#f1f5f9',
-        bodyColor: '#cbd5e1',
-        borderColor: 'rgba(100, 116, 139, 0.3)',
+        backgroundColor: 'rgba(24, 24, 27, 0.95)',
+        titleColor: '#f4f4f5',
+        bodyColor: '#d4d4d8',
+        borderColor: 'rgba(113, 113, 122, 0.3)',
         borderWidth: 1,
         cornerRadius: 12,
         padding: 12,
       },
     },
     scales: {
-      x: { grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#64748b' } },
-      y: { grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#64748b' } },
+      x: { grid: { color: 'rgba(63, 63, 70, 0.3)' }, ticks: { color: '#71717a' } },
+      y: { grid: { color: 'rgba(63, 63, 70, 0.3)' }, ticks: { color: '#71717a' } },
     },
   };
 
@@ -152,7 +152,7 @@ const DashboardPage = () => {
             <h3 className="text-lg font-bold text-dark-100 mb-4">Top Productos del Mes</h3>
             <div className="h-72 flex items-center justify-center">
               {doughnutData ? (
-                <Doughnut data={doughnutData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', padding: 12, font: { size: 11 } } } } }} />
+                <Doughnut data={doughnutData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#a1a1aa', padding: 12, font: { size: 11 } } } } }} />
               ) : (
                 <div className="text-dark-500 text-sm">Sin datos de ventas</div>
               )}
