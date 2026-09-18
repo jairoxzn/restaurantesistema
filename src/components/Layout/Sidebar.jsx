@@ -1,8 +1,10 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { useState } from 'react';
-import { QRCodeSVG } from 'qrcode.react';
+import { useRef, useState } from 'react';
+import { QRCodeCanvas } from 'qrcode.react';
+import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import { useSettings } from '../../context/SettingsContext';
+import { downloadQrImage, printQrCard } from '../../utils/qrCard';
 import {
   HiOutlineViewGrid,
   HiOutlineCube,
@@ -17,6 +19,9 @@ import {
   HiOutlineFire,
   HiOutlineClipboardCheck,
   HiOutlineIdentification,
+  HiOutlineDownload,
+  HiOutlinePrinter,
+  HiOutlineShare,
   HiX
 } from 'react-icons/hi';
 
@@ -26,6 +31,43 @@ const Sidebar = ({ isOpen, onClose }) => {
   const location = useLocation();
   const API_URL = '';
   const [isQrOpen, setIsQrOpen] = useState(false);
+  const qrCanvasRef = useRef(null);
+  const menuUrl = `${window.location.origin}/menu`;
+
+  const getQrDataUrl = () => qrCanvasRef.current?.toDataURL('image/png');
+
+  const handleDownloadQr = () => {
+    const dataUrl = getQrDataUrl();
+    if (!dataUrl) return;
+    downloadQrImage(dataUrl, `qr-menu-${(settings?.nombre_cafeteria || 'cafeteria').toLowerCase().replace(/\s+/g, '-')}.png`);
+  };
+
+  const handlePrintCard = () => {
+    const dataUrl = getQrDataUrl();
+    if (!dataUrl) return;
+    printQrCard(dataUrl, settings, menuUrl);
+  };
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(menuUrl);
+    toast.success('Enlace copiado');
+  };
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: settings?.nombre_cafeteria || 'Menú Digital',
+          text: 'Mira nuestro menú digital y haz tu pedido:',
+          url: menuUrl,
+        });
+      } catch {
+        // El usuario canceló el diálogo de compartir; no hacemos nada.
+      }
+    } else {
+      handleCopyLink();
+    }
+  };
 
   const getLogoUrl = (url) => {
     if (!url) return null;
@@ -102,7 +144,7 @@ const Sidebar = ({ isOpen, onClose }) => {
             className="sidebar-link w-full text-left mt-2 border border-primary-500/30 text-primary-400 hover:text-white"
           >
             <HiOutlineQrcode className="w-5 h-5" />
-            <span>Generar QR del Menú</span>
+            <span>Carta QR del Menú</span>
           </button>
         </nav>
 
@@ -141,43 +183,65 @@ const Sidebar = ({ isOpen, onClose }) => {
             <div className="flex items-center justify-between p-5 border-b border-white/5 bg-dark-800/50">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
                 <HiOutlineQrcode className="text-primary-500 w-6 h-6" />
-                Menú Digital QR
+                Carta QR del Menú
               </h3>
-              <button 
+              <button
                 onClick={() => setIsQrOpen(false)}
                 className="w-8 h-8 rounded-full bg-dark-800 text-dark-400 hover:text-white flex items-center justify-center transition-colors"
               >
                 <HiX className="w-5 h-5" />
               </button>
             </div>
-            
+
             <div className="p-8 flex flex-col items-center">
               <div className="bg-white p-4 rounded-2xl shadow-xl mb-6">
-                <QRCodeSVG 
-                  value={`${window.location.origin}/menu`}
+                <QRCodeCanvas
+                  ref={qrCanvasRef}
+                  value={menuUrl}
                   size={200}
                   bgColor={"#ffffff"}
                   fgColor={"#18181b"}
                   level={"Q"}
-                  includeMargin={false}
+                  marginSize={0}
                 />
               </div>
               <p className="text-center text-dark-300 mb-4">
-                Imprime o muestra este código QR para que tus clientes puedan escanearlo y ver el menú digital.
+                Descarga o imprime esta carta y colócala en tus mesas para que tus clientes escaneen y vean el menú digital.
               </p>
-              
-              <div className="w-full bg-dark-950 p-3 rounded-xl border border-white/5 flex items-center justify-between">
-                <span className="text-xs text-dark-400 truncate mr-2">{`${window.location.origin}/menu`}</span>
-                <button 
-                  onClick={() => {
-                    navigator.clipboard.writeText(`${window.location.origin}/menu`);
-                    alert('Enlace copiado');
-                  }}
-                  className="px-3 py-1 bg-dark-800 text-xs font-medium text-white rounded-lg hover:bg-primary-500 transition-colors"
+
+              <div className="w-full bg-dark-950 p-3 rounded-xl border border-white/5 flex items-center justify-between mb-4">
+                <span className="text-xs text-dark-400 truncate mr-2">{menuUrl}</span>
+                <button
+                  onClick={handleCopyLink}
+                  className="px-3 py-1 bg-dark-800 text-xs font-medium text-white rounded-lg hover:bg-primary-500 transition-colors shrink-0"
                 >
                   Copiar
                 </button>
               </div>
+
+              <div className="w-full grid grid-cols-2 gap-3">
+                <button
+                  onClick={handlePrintCard}
+                  className="btn-secondary flex items-center justify-center gap-2 !px-3 !py-2.5 text-sm"
+                >
+                  <HiOutlinePrinter className="w-4 h-4" />
+                  Imprimir carta
+                </button>
+                <button
+                  onClick={handleDownloadQr}
+                  className="btn-secondary flex items-center justify-center gap-2 !px-3 !py-2.5 text-sm"
+                >
+                  <HiOutlineDownload className="w-4 h-4" />
+                  Descargar QR
+                </button>
+              </div>
+              <button
+                onClick={handleShare}
+                className="btn-primary w-full flex items-center justify-center gap-2 mt-3 !py-2.5 text-sm"
+              >
+                <HiOutlineShare className="w-4 h-4" />
+                Compartir con mis clientes
+              </button>
             </div>
           </div>
         </div>
