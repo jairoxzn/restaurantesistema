@@ -5,9 +5,10 @@ import { productService } from '../services/productService';
 import { categoryService } from '../services/categoryService';
 import { kardexService } from '../services/kardexService';
 import toast from 'react-hot-toast';
-import { 
-  HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineSearch, 
-  HiOutlinePhotograph, HiOutlineCube, HiOutlineClipboardList, HiOutlineDownload 
+import {
+  HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineSearch,
+  HiOutlinePhotograph, HiOutlineCube, HiOutlineClipboardList, HiOutlineDownload,
+  HiOutlineTag, HiOutlineCheck, HiOutlineX
 } from 'react-icons/hi';
 import { exportKardexReportExcel, exportKardexReportPDF } from '../utils/exportReports';
 
@@ -22,6 +23,12 @@ const ProductsPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [form, setForm] = useState({ nombre: '', descripcion: '', precio: '', stock: '', categoria_id: '', imagen: null });
+
+  // Categories management
+  const [isCategoriesModalOpen, setIsCategoriesModalOpen] = useState(false);
+  const [categoryName, setCategoryName] = useState('');
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [savingCategory, setSavingCategory] = useState(false);
 
   // Kardex States
   const [isKardexModalOpen, setIsKardexModalOpen] = useState(false);
@@ -152,6 +159,94 @@ const ProductsPage = () => {
     });
   };
 
+  // Category functions
+  const openCategories = () => {
+    setEditingCategory(null);
+    setCategoryName('');
+    setIsCategoriesModalOpen(true);
+  };
+
+  const startEditCategory = (category) => {
+    setEditingCategory(category);
+    setCategoryName(category.nombre);
+  };
+
+  const cancelEditCategory = () => {
+    setEditingCategory(null);
+    setCategoryName('');
+  };
+
+  const handleCategorySubmit = async (e) => {
+    e.preventDefault();
+    const nombre = categoryName.trim();
+    if (!nombre) return;
+
+    setSavingCategory(true);
+    try {
+      if (editingCategory) {
+        await categoryService.update(editingCategory.id, { nombre });
+        toast.success('Categoría actualizada');
+      } else {
+        await categoryService.create({ nombre });
+        toast.success('Categoría creada');
+      }
+      setEditingCategory(null);
+      setCategoryName('');
+      const catRes = await categoryService.getAll();
+      setCategories(catRes.data);
+      loadProducts();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Error al guardar la categoría');
+    } finally {
+      setSavingCategory(false);
+    }
+  };
+
+  const handleDeleteCategory = (category) => {
+    toast((t) => (
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-red-400 text-lg">⚠️</span>
+          <span className="font-semibold text-dark-100">¿Eliminar "{category.nombre}"?</span>
+        </div>
+        <p className="text-sm text-dark-400">Esta acción no se puede deshacer.</p>
+        <div className="flex gap-2">
+          <button
+            onClick={async () => {
+              toast.dismiss(t.id);
+              try {
+                await categoryService.delete(category.id);
+                toast.success('Categoría eliminada');
+                const catRes = await categoryService.getAll();
+                setCategories(catRes.data);
+                loadProducts();
+              } catch (error) {
+                toast.error(error.response?.data?.message || 'Error al eliminar categoría');
+              }
+            }}
+            className="flex-1 px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            Sí, eliminar
+          </button>
+          <button
+            onClick={() => toast.dismiss(t.id)}
+            className="flex-1 px-3 py-2 bg-dark-600 hover:bg-dark-500 text-dark-200 rounded-lg text-sm font-medium transition-colors"
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>
+    ), {
+      duration: 10000,
+      style: {
+        background: 'rgba(9, 9, 11, 0.98)',
+        border: '1px solid rgba(239, 68, 68, 0.3)',
+        borderLeft: '4px solid #ef4444',
+        maxWidth: '360px',
+      },
+    });
+  };
+
   // Kardex functions
   const openKardex = async (product) => {
     try {
@@ -212,10 +307,16 @@ const ProductsPage = () => {
               ))}
             </select>
           </div>
-          <button onClick={openCreate} className="btn-primary flex items-center gap-2">
-            <HiOutlinePlus className="w-5 h-5" />
-            Nuevo Producto
-          </button>
+          <div className="flex items-center gap-3">
+            <button onClick={openCategories} className="btn-secondary flex items-center gap-2">
+              <HiOutlineTag className="w-5 h-5" />
+              Categorías
+            </button>
+            <button onClick={openCreate} className="btn-primary flex items-center gap-2">
+              <HiOutlinePlus className="w-5 h-5" />
+              Nuevo Producto
+            </button>
+          </div>
         </div>
 
         {/* Products Grid */}
@@ -321,6 +422,50 @@ const ProductsPage = () => {
             <button type="button" onClick={() => setIsModalOpen(false)} className="btn-secondary">Cancelar</button>
           </div>
         </form>
+      </Modal>
+
+      {/* Categories Modal */}
+      <Modal isOpen={isCategoriesModalOpen} onClose={() => setIsCategoriesModalOpen(false)} title="Gestionar Categorías" size="sm">
+        <div className="space-y-5">
+          <form onSubmit={handleCategorySubmit} className="flex items-center gap-2">
+            <input
+              type="text"
+              value={categoryName}
+              onChange={(e) => setCategoryName(e.target.value)}
+              className="input-field"
+              placeholder="Nombre de la categoría"
+              autoFocus
+              required
+            />
+            <button type="submit" disabled={savingCategory} className="btn-primary shrink-0 !px-3.5 disabled:opacity-50">
+              <HiOutlineCheck className="w-5 h-5" />
+            </button>
+            {editingCategory && (
+              <button type="button" onClick={cancelEditCategory} className="btn-secondary shrink-0 !px-3.5">
+                <HiOutlineX className="w-5 h-5" />
+              </button>
+            )}
+          </form>
+
+          <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+            {categories.map(cat => (
+              <div key={cat.id} className="flex items-center justify-between bg-dark-900/50 border border-white/5 rounded-xl px-4 py-2.5">
+                <span className="text-sm font-medium text-dark-100">{cat.nombre}</span>
+                <div className="flex items-center gap-1.5">
+                  <button onClick={() => startEditCategory(cat)} className="p-1.5 rounded-lg text-dark-400 hover:text-primary-400 hover:bg-dark-800 transition-colors">
+                    <HiOutlinePencil className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => handleDeleteCategory(cat)} className="p-1.5 rounded-lg text-dark-400 hover:text-red-400 hover:bg-dark-800 transition-colors">
+                    <HiOutlineTrash className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+            {categories.length === 0 && (
+              <p className="text-center text-sm text-dark-500 py-4">Aún no hay categorías.</p>
+            )}
+          </div>
+        </div>
       </Modal>
 
       {/* Kardex Modal */}

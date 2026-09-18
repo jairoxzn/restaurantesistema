@@ -72,6 +72,9 @@ const remove = async (req, res) => {
     });
     res.json({ message: 'Categoría eliminada.' });
   } catch (error) {
+    if (error.code === 'P2003') {
+      return res.status(400).json({ message: 'No se puede eliminar: hay productos asociados a esta categoría.' });
+    }
     console.error('Delete category error:', error);
     res.status(500).json({ message: 'Error del servidor.' });
   }
